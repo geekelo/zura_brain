@@ -1,17 +1,53 @@
-# React + Vite
+# TaskPlate
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A project management UI with Projects, Reminders, and Notes views. Built as a high-fidelity recreation of a light, pastel dashboard design.
 
-Currently, two official plugins are available:
+## Screens
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Projects** — Grid of pastel project cards with filters, sort, and a new-project dropzone
+- **Reminders** — Status tabs, date-grouped tasks, and a right rail (overview, calendar, quick filters)
+- **Notes** — Project detail with pinned notes, all notes, labels, and a take-a-note bar
 
-## React Compiler
+Click a project card to open Notes. Use the sidebar to switch between Projects and Reminders.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Stack
 
-## Expanding the ESLint configuration
+- React 19
+- Vite 8
+- Plain CSS (no UI library)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-# zura_brain
+## Requirements
+
+Node.js **20+** (Vite 8 needs Node 20 or later).
+
+```bash
+nvm use 22   # if you use nvm
+```
+
+## Setup
+
+```bash
+npm install
+npm run dev
+```
+
+Open the URL Vite prints (usually `http://localhost:5173`).
+
+## Scripts
+
+| Command         | Description              |
+| --------------- | ------------------------ |
+| `npm run dev`   | Start the dev server     |
+| `npm run build` | Production build         |
+| `npm run preview` | Preview the production build |
+| `npm run lint`  | Run ESLint               |
+
+## Project structure
+
+```
+src/
+  App.jsx              # Shell + view routing
+  data.js              # Demo content
+  components/          # Sidebar, TopBar, avatars, icons
+  views/               # Projects, Reminders, Notes
+```

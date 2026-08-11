@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #ffffff;
+  --bg-sidebar: #f7f7f8;
+  --bg-muted: #f3f4f6;
+  --bg-search: #f3f4f6;
+  --border: #e8e8ea;
+  --border-soft: #efefef;
+  --text: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --yellow: #f2c94c;
+  --yellow-soft: #fff4cc;
+  --yellow-deep: #b45309;
+  --purple: #a78bfa;
+  --purple-soft: #f3e8ff;
+  --purple-deep: #7e22ce;
+  --blue: #60a5fa;
+  --blue-soft: #e0f2fe;
+  --blue-deep: #0369a1;
+  --green: #4ade80;
+  --green-soft: #dcfce7;
+  --green-deep: #15803d;
+  --red: #f87171;
+  --red-soft: #fee2e2;
+  --red-deep: #b91c1c;
+  --orange: #fb923c;
+  --orange-soft: #ffedd5;
+  --orange-deep: #c2410c;
+  --teal: #2dd4bf;
+  --teal-soft: #ccfbf1;
+  --teal-deep: #0f766e;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.04);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --sidebar-w: 248px;
+  --rail-w: 280px;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
