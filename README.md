@@ -1,53 +1,45 @@
-# TaskPlate
+# Zura Brain — Front Desk
 
-A project management UI with Projects, Reminders, and Notes views. Built as a high-fidelity recreation of a light, pastel dashboard design.
+Single-screen front desk UI for spa session handling. No sidebar. Search an existing client, add or pull booked sessions for the day, send notes to admin, and review saved sessions by date.
 
-## Screens
+## What it does
 
-- **Projects** — Grid of pastel project cards with filters, sort, and a new-project dropzone
-- **Reminders** — Status tabs, date-grouped tasks, and a right rail (overview, calendar, quick filters)
-- **Notes** — Project detail with pinned notes, all notes, labels, and a take-a-note bar
+1. **Search** — find a client by name or phone, or **Create Client** beside search
+2. **Client** — see cycle + history, then:
+   - **Add Session** — form with cycle auto-filled to the next number
+   - **View Booked Sessions** — unused bookings; **Add to Session** saves them for today
+   - **Send Note to Admin** — drop a ticket / request (e.g. update phone)
+3. **Saved Sessions** — Today (default), Yesterday, or Pick Date. **Edit** is hidden after 36 hours. **Complete Client** marks the visit done.
 
-Click a project card to open Notes. Use the sidebar to switch between Projects and Reminders.
+## Staff codes (demo)
 
-## Stack
+Saves require a valid staff unique code so admin can see who acted:
 
-- React 19
-- Vite 8
-- Plain CSS (no UI library)
+| Code    | Name  |
+| ------- | ----- |
+| FD-1001 | Hina  |
+| FD-1002 | Bilal |
+| FD-1003 | Sana  |
+| FD-1004 | Usman |
+
+## Demo clients
+
+| Name         | Phone (search tip) |
+| ------------ | ------------------ |
+| Imran Khan   | `348` or `Imran`   |
+| Ayesha Malik | `555` or `Ayesha`  |
+| Omar Farooq  | `777` or `Omar`    |
 
 ## Requirements
 
-Node.js **20+** (Vite 8 needs Node 20 or later).
+Node.js **20+**
 
 ```bash
-nvm use 22   # if you use nvm
-```
-
-## Setup
-
-```bash
+nvm use 22   # if needed
 npm install
 npm run dev
 ```
 
-Open the URL Vite prints (usually `http://localhost:5173`).
+## Stack
 
-## Scripts
-
-| Command         | Description              |
-| --------------- | ------------------------ |
-| `npm run dev`   | Start the dev server     |
-| `npm run build` | Production build         |
-| `npm run preview` | Preview the production build |
-| `npm run lint`  | Run ESLint               |
-
-## Project structure
-
-```
-src/
-  App.jsx              # Shell + view routing
-  data.js              # Demo content
-  components/          # Sidebar, TopBar, avatars, icons
-  views/               # Projects, Reminders, Notes
-```
+React 19 + Vite 8 · plain CSS · frontend-only demo data in `src/data.js`
