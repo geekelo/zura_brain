@@ -39,6 +39,7 @@ Payment `status`: `ok` (Unconfirmed) | `refunded` (Refunded) | `nonrefunded` (No
 
 Client preferences: **Preferences** on the client card (no admin code).  
 **View sessions** loads `GET /pos/sessions?phone=` for that client (by cycle; `404` if unknown).  
+**WhatsApp** opens a pre-filled chat to the client phone (visit thanks ± tip ask, or tip thanks).  
 Other client field edits need admin `code`/`tc` — use **Request client edit** (admin note).  
 Session notes: **Manage → Admin note**.
 

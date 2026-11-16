@@ -13,6 +13,54 @@ export const massageTypes = [
   'Zura postnatal',
 ]
 
+/** WhatsApp follow-up templates. `{honorific}` → Sir / Madam. */
+export const whatsappTemplates = [
+  {
+    id: 'visit-tip',
+    label: 'Appreciate visit + tip ask',
+    description: 'Thank them for coming and invite a tip',
+    body: `Hello {honorific}
+
+Thank you for your visit to the Spa today.
+We trust you enjoyed the Zura session.
+
+Please feel free to book a Zura session. We'd be happy to give you that relaxation you deserve.
+
+Would you care to be generous to the therapists who took your session today {honorific} ? If yes
+3003446219
+KUDA BANK
+DELIGHT OLGA
+
+🌿 ZURA SPA`,
+  },
+  {
+    id: 'tip-thanks',
+    label: 'Appreciate for tipping',
+    description: 'Thank them after they tipped',
+    body: `Thank you {honorific}, for appreciating the therapists who handled your session. They are truly grateful for your generosity.
+
+We would also like to reassure you that at Zura Spa, we are committed to delivering the highest standard of service to every client, regardless of whether a tip is given or not. While tips are sincerely appreciated, they do not influence the quality of care or professionalism you receive. You can always be assured of our best service on every visit.
+
+Thank you once again for your continued patronage and support.
+
+~ZURA SPA`,
+  },
+  {
+    id: 'visit',
+    label: 'Appreciate visit',
+    description: 'Thank them for coming — no tip ask',
+    body: `Hello {honorific}
+
+Thank you for your visit to the Spa today.
+We trust you enjoyed the Zura session.
+
+Please feel free to book a Zura session. We'd be happy to give you that relaxation you deserve.
+
+
+🌿 ZURA SPA`,
+  },
+]
+
 /** e.g. single → Single */
 export function toSentenceCase(value) {
   const s = String(value || '').trim()

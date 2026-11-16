@@ -13,6 +13,7 @@ import {
   handsOptions,
   staffDirectory,
   paymentStatusLabel,
+  whatsappTemplates,
 } from './data'
 import {
   createPosClient,
@@ -136,6 +137,38 @@ function digitsOnly(s) {
   return String(s || '').replace(/\D/g, '')
 }
 
+/** WhatsApp honorific from client sex. */
+function clientHonorific(client) {
+  const sex = String(client?.sex || '').toLowerCase()
+  if (sex === 'f' || sex === 'female') return 'Madam'
+  return 'Sir'
+}
+
+/**
+ * Digits for wa.me (international, no +).
+ * Local NG numbers like 080… → 23480…
+ */
+function whatsappPhoneDigits(phone) {
+  let d = digitsOnly(phone)
+  if (!d) return ''
+  if (d.startsWith('00')) d = d.slice(2)
+  if (d.startsWith('0') && d.length >= 10) d = `234${d.slice(1)}`
+  return d
+}
+
+function fillWhatsappTemplate(body, client) {
+  return String(body || '').replaceAll('{honorific}', clientHonorific(client))
+}
+
+function openWhatsappToClient(client, templateBody) {
+  const phone = whatsappPhoneDigits(client?.phone)
+  if (!phone) return { ok: false, error: 'Client phone required' }
+  const text = fillWhatsappTemplate(templateBody, client)
+  const href = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+  window.open(href, '_blank', 'noopener,noreferrer')
+  return { ok: true }
+}
+
 function resolveStaff(code) {
   const normalized = String(code || '').trim().toUpperCase()
   if (!normalized) return null
@@ -191,7 +224,7 @@ export default function App() {
   const [client, setClient] = useState(null)
   const [booked, setBooked] = useState({})
   const [saved, setSaved] = useState([])
-  const [panel, setPanel] = useState(null) // 'session' | 'booked' | 'note' | 'preferences' | 'create' | null
+  const [panel, setPanel] = useState(null) // 'session' | 'booked' | 'note' | 'preferences' | 'whatsapp' | 'create' | null
   const [form, setForm] = useState(emptyForm)
   const [clientForm, setClientForm] = useState(emptyClientForm)
   const [note, setNote] = useState('')
@@ -519,6 +552,19 @@ export default function App() {
   function openPreferences() {
     setPreferencesText(client?.preferences || '')
     setPanel('preferences')
+  }
+
+  function openWhatsapp() {
+    setPanel('whatsapp')
+  }
+
+  function sendWhatsappTemplate(template) {
+    const result = openWhatsappToClient(client, template.body)
+    if (!result.ok) {
+      showToast(result.error)
+      return
+    }
+    showToast('Opening WhatsApp…')
   }
 
   async function savePreferences(e) {
@@ -1212,6 +1258,9 @@ export default function App() {
                     View Booked Sessions
                   </button>
                 )}
+                <button type="button" className="btn outline" onClick={openWhatsapp}>
+                  WhatsApp
+                </button>
                 <button type="button" className="btn outline" onClick={openPreferences}>
                   Preferences
                 </button>
@@ -1220,6 +1269,35 @@ export default function App() {
                 </button>
               </div>
             </div>
+          </section>
+        )}
+
+        {panel === 'whatsapp' && client && (
+          <section className="card panel-card whatsapp-panel">
+            <div className="panel-head">
+              <h2>WhatsApp</h2>
+              <button type="button" className="text-btn" onClick={() => setPanel(null)}>
+                Close
+              </button>
+            </div>
+            <p className="muted note-intro">
+              Send a message to {client.name || client.phone} · {client.phone}. Opens WhatsApp with
+              the message ready to send ({clientHonorific(client)}).
+            </p>
+            <ul className="whatsapp-template-list">
+              {whatsappTemplates.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    className="whatsapp-template-btn"
+                    onClick={() => sendWhatsappTemplate(t)}
+                  >
+                    <strong>{t.label}</strong>
+                    <span>{t.description}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 
