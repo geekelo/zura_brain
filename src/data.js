@@ -1,8 +1,67 @@
 /** Demo clients & bookings for Front Desk (frontend only). */
 
 export const therapists = ['Sara', 'Amina', 'Noor', 'Fatima', 'Zain']
-export const sessionTypes = ['Massage', 'Facial', 'Body Scrub', 'Hot Stone', 'Aromatherapy']
+export const sessionTypes = ['Single', 'Couple', 'Bulk']
+export const DEFAULT_MASSAGE_TYPE = 'Zura Massage'
+export const massageTypes = [
+  DEFAULT_MASSAGE_TYPE,
+  'Lunez male',
+  'Lunez female',
+  'Localized',
+  'Zura kids',
+  'Zura prenatal',
+  'Zura postnatal',
+]
+
+/** e.g. single → Single */
+export function toSentenceCase(value) {
+  const s = String(value || '').trim()
+  if (!s) return ''
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+}
 export const handsOptions = ['1', '2', '4']
+export const DEFAULT_AMOUNT = 35000
+export const amountOptions = [35000, 30000, 25000]
+export const DEFAULT_LUNEZ_AMOUNT = 0
+export const DEFAULT_LUNEZ_AMOUNT_YES = 10000
+export const lunezAmountOptions = [0, 10000, 20000, 30000, 40000, 50000, 60000]
+
+/** Map API decimal amounts (e.g. "35000.0") onto a dropdown option value. */
+export function amountSelectValue(value, fallback = DEFAULT_AMOUNT) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return String(fallback)
+  const match = amountOptions.find((a) => a === n)
+  return String(match ?? n)
+}
+
+export function lunezAmountSelectValue(value, fallback = DEFAULT_LUNEZ_AMOUNT) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return String(fallback)
+  const match = lunezAmountOptions.find((a) => a === n)
+  return String(match ?? n)
+}
+export const paymentSources = [
+  'pos',
+  'kuda',
+  'delight olga',
+  'cash',
+  'moniepoint',
+  'other',
+]
+export const paymentTypes = ['massage', 'lunez', 'other']
+/** API value → display label */
+export const paymentStatuses = [
+  { value: 'ok', label: 'Unconfirmed' },
+  { value: 'refunded', label: 'Refunded' },
+  { value: 'nonrefunded', label: 'Not-refunded' },
+]
+
+export function paymentStatusLabel(status) {
+  const key = String(status || '').toLowerCase()
+  const found = paymentStatuses.find((s) => s.value === key)
+  return found?.label || status || ''
+}
+export const sessionTherapistRoles = ['lead', 'assist', 'support', 'frontdesk']
 
 /** Front desk staff unique codes — used to attribute saves to a person */
 export const staffDirectory = [
@@ -14,141 +73,139 @@ export const staffDirectory = [
 
 export const clients = [
   {
-    id: 'c1',
     name: 'Imran Khan',
     phone: '+92 348 0123 784',
+    other_phones: '+92 300 111 2222',
     phoneDigits: '923480123784',
     initials: 'IK',
-    badge: 'Regular Client',
+    badge: 'Adult',
     sex: 'M',
+    cycle: 2,
+    cycle_length: 4,
     cycleCurrent: 2,
     cycleTotal: 4,
+    adult: true,
+    created_by: 'FD-1001',
     totalSessions: 6,
-    completed: 4,
-    upcoming: 2,
+    completedSessions: 3,
+    pendingSessions: 1,
+    disputedSessions: 1,
+    ongoingSessions: 1,
   },
   {
-    id: 'c2',
     name: 'Ayesha Malik',
     phone: '+92 300 555 2211',
+    other_phones: '',
     phoneDigits: '923005552211',
     initials: 'AM',
-    badge: 'VIP',
+    badge: 'Adult',
     sex: 'F',
+    cycle: 3,
+    cycle_length: 4,
     cycleCurrent: 3,
     cycleTotal: 4,
-    totalSessions: 11,
-    completed: 9,
-    upcoming: 2,
+    adult: true,
+    created_by: 'FD-1002',
+    totalSessions: 12,
+    completedSessions: 10,
+    pendingSessions: 1,
+    disputedSessions: 0,
+    ongoingSessions: 1,
   },
   {
-    id: 'c3',
     name: 'Omar Farooq',
     phone: '+92 321 777 8899',
+    other_phones: '+92 321 111 0000',
     phoneDigits: '923217778899',
     initials: 'OF',
-    badge: 'New Client',
+    badge: 'Adult',
     sex: 'M',
+    cycle: 0,
+    cycle_length: 4,
     cycleCurrent: 0,
     cycleTotal: 4,
-    totalSessions: 0,
-    completed: 0,
-    upcoming: 1,
+    adult: true,
+    created_by: 'FD-1003',
+    totalSessions: 2,
+    completedSessions: 1,
+    pendingSessions: 1,
+    disputedSessions: 0,
+    ongoingSessions: 0,
   },
 ]
 
-/** Unused / booked sessions keyed by client id */
 export const bookedByClient = {
-  c1: [
+  '923480123784': [
     {
       id: 'b1',
-      date: '2026-10-08',
       sessionType: 'Massage',
       cycle: '3 / 4',
       amount: 4500,
-      status: 'Booked',
+      status: 'booked',
       therapists: ['Sara'],
       hands: '2',
-      sex: 'M',
-      bonus: 0,
       lunez: 0,
+      dateTime: new Date().toISOString(),
     },
     {
       id: 'b2',
-      date: '2026-10-12',
       sessionType: 'Facial',
       cycle: '4 / 4',
       amount: 3200,
-      status: 'Booked',
+      status: 'booked',
       therapists: ['Amina'],
       hands: '1',
-      sex: 'M',
-      bonus: 0,
       lunez: 0,
+      dateTime: new Date().toISOString(),
     },
   ],
-  c2: [
+  '923005552211': [
     {
       id: 'b3',
-      date: '2026-10-07',
       sessionType: 'Hot Stone',
       cycle: '4 / 4',
       amount: 5500,
-      status: 'Booked',
+      status: 'booked',
       therapists: ['Noor', 'Fatima'],
       hands: '4',
-      sex: 'F',
-      bonus: 200,
       lunez: 1,
+      dateTime: new Date().toISOString(),
     },
   ],
-  c3: [
+  '923217778899': [
     {
       id: 'b4',
-      date: '2026-10-09',
       sessionType: 'Massage',
       cycle: '1 / 4',
       amount: 4000,
-      status: 'Booked',
+      status: 'booked',
       therapists: ['Zain'],
       hands: '2',
-      sex: 'M',
-      bonus: 0,
       lunez: 0,
+      dateTime: new Date().toISOString(),
     },
   ],
 }
 
-function hoursAgo(h) {
-  return new Date(Date.now() - h * 60 * 60 * 1000).toISOString()
-}
-
-function daysAgo(d, hour = 11) {
-  const date = new Date()
-  date.setDate(date.getDate() - d)
-  date.setHours(hour, 30, 0, 0)
-  return date.toISOString()
-}
-
 /** Seed saved sessions (some older than 36h to demo edit lock) */
-export const initialSavedSessions = [
+export const seedSavedSessions = [
   {
     id: 's1',
     clientId: 'c1',
     clientName: 'Imran Khan',
-    dateTime: hoursAgo(2),
+    clientPhone: '+92 348 0123 784',
+    dateTime: new Date().toISOString(),
     sessionType: 'Massage',
     cycle: '2 / 4',
     amount: 4500,
     settled: true,
-    bonus: 0,
     lunez: 0,
     therapists: ['Sara'],
     hands: '2',
-    sex: 'M',
-    comments: '',
-    status: 'Pending',
-    source: 'new',
+    comments: [],
+    status: 'completed',
+    source: 'demo',
+    sessionCode: '',
     staffCode: 'FD-1001',
     staffName: 'Hina',
   },
@@ -156,19 +213,19 @@ export const initialSavedSessions = [
     id: 's2',
     clientId: 'c2',
     clientName: 'Ayesha Malik',
-    dateTime: hoursAgo(5),
+    clientPhone: '+92 300 555 2211',
+    dateTime: new Date(Date.now() - 86400000).toISOString(),
     sessionType: 'Facial',
     cycle: '3 / 4',
     amount: 3200,
     settled: false,
-    bonus: 100,
     lunez: 0,
     therapists: ['Amina'],
     hands: '1',
-    sex: 'F',
-    comments: '',
-    status: 'Pending',
-    source: 'new',
+    comments: [],
+    status: 'pending',
+    source: 'demo',
+    sessionCode: '',
     staffCode: 'FD-1002',
     staffName: 'Bilal',
   },
@@ -176,39 +233,39 @@ export const initialSavedSessions = [
     id: 's3',
     clientId: 'c1',
     clientName: 'Imran Khan',
-    dateTime: daysAgo(1, 14),
+    clientPhone: '+92 348 0123 784',
+    dateTime: new Date(Date.now() - 2 * 86400000).toISOString(),
     sessionType: 'Body Scrub',
     cycle: '1 / 4',
     amount: 3800,
     settled: true,
-    bonus: 0,
     lunez: 1,
     therapists: ['Noor'],
     hands: '2',
-    sex: 'M',
-    comments: '',
-    status: 'Completed',
-    source: 'new',
+    comments: [],
+    status: 'completed',
+    source: 'demo',
+    sessionCode: '',
     staffCode: 'FD-1001',
     staffName: 'Hina',
   },
   {
     id: 's4',
-    clientId: 'c2',
-    clientName: 'Ayesha Malik',
-    dateTime: daysAgo(2, 10),
+    clientId: 'c3',
+    clientName: 'Omar Farooq',
+    clientPhone: '+92 321 777 8899',
+    dateTime: new Date(Date.now() - 3 * 86400000).toISOString(),
     sessionType: 'Aromatherapy',
     cycle: '2 / 4',
     amount: 5000,
-    settled: true,
-    bonus: 0,
+    settled: false,
     lunez: 0,
     therapists: ['Fatima', 'Sara'],
     hands: '4',
-    sex: 'F',
-    comments: '',
-    status: 'Completed',
-    source: 'booked',
+    comments: [],
+    status: 'pending',
+    source: 'demo',
+    sessionCode: '',
     staffCode: 'FD-1003',
     staffName: 'Sana',
   },

@@ -1,16 +1,42 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   clients,
   bookedByClient,
-  initialSavedSessions,
   sessionTypes,
-  therapists,
+  massageTypes,
+  DEFAULT_MASSAGE_TYPE,
+  DEFAULT_AMOUNT,
+  amountOptions,
+  DEFAULT_LUNEZ_AMOUNT,
+  DEFAULT_LUNEZ_AMOUNT_YES,
+  lunezAmountOptions,
   handsOptions,
   staffDirectory,
+  paymentStatusLabel,
 } from './data'
+import {
+  createPosClient,
+  searchPosClients,
+  createPosSession,
+  listPosSessions,
+  setPosSessionTimes,
+  verifyPosSessionPayment,
+  createPosAdminNote,
+  updatePosClientPreferences,
+  normalizeClient,
+  clientKey,
+  normalizeSession,
+  formatSessionTherapistsLabel,
+  paymentReceiptImgUrl,
+  sessionHistoryTrueLabels,
+  hasSessionTime,
+  nowTimeOfDay,
+  toTimeOfDay,
+  formatDuration,
+} from './api'
+import SessionActions from './SessionActions'
+import SessionTherapists from './SessionTherapists'
 import './App.css'
-
-const EDIT_WINDOW_MS = 36 * 60 * 60 * 1000
 
 function todayISO() {
   const d = new Date()
@@ -45,27 +71,65 @@ function formatDateTime(iso) {
 }
 
 function formatMoney(n) {
-  return `Rs ${Number(n).toLocaleString()}`
+  return `₦${Number(n).toLocaleString()}`
 }
 
-function canEdit(session) {
-  return Date.now() - new Date(session.dateTime).getTime() < EDIT_WINDOW_MS
+function PaymentMethodsDisplay({ paymentMethods, onOpenReceipt }) {
+  if (!Array.isArray(paymentMethods) || paymentMethods.length === 0) {
+    return <span className="muted">—</span>
+  }
+  return (
+    <ul className="payment-methods-list">
+      {paymentMethods.map((pm, pi) => {
+        const receipt = paymentReceiptImgUrl(pm)
+        return (
+          <li key={pm.id || `${pm.source}-${pm.type}-${pi}`} className="payment-method-item">
+            <div className="payment-method-main">
+              <strong className="payment-method-amount">{formatMoney(pm.amount)}</strong>
+              <span className="payment-method-meta">
+                {[pm.source, pm.type].filter(Boolean).join(' · ') || '—'}
+              </span>
+              {pm.status ? (
+                <span className="badge soft">{paymentStatusLabel(pm.status)}</span>
+              ) : null}
+            </div>
+            {receipt ? (
+              <button
+                type="button"
+                className="receipt-thumb-btn"
+                onClick={() => onOpenReceipt(receipt)}
+                aria-label="View receipt"
+              >
+                <img src={receipt} alt="" className="receipt-thumb" />
+              </button>
+            ) : null}
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
-/** Booked/unused pull-ins: any valid staff may edit. Otherwise only the creating code. */
-function isFromUnusedBooking(session) {
-  return session?.source === 'booked'
+/** Always show cycle progress over 4, never API cycle_length as denominator. */
+function formatSessionCycle(s) {
+  const n = s?.cycleNum
+  if (n == null || n === '') return 'Cycle — · —/4'
+  return `Cycle ${n} · ${n}/4`
 }
 
-function staffMayEdit(session, staff) {
-  if (!session || !staff) return false
-  if (isFromUnusedBooking(session)) return true
-  return session.staffCode?.toUpperCase() === staff.code.toUpperCase()
+function isEvenCycle(value) {
+  const n = Number(value)
+  return Number.isFinite(n) && n % 2 === 0
 }
 
-function nextCycleLabel(client) {
-  const next = Math.min(client.cycleCurrent + 1, client.cycleTotal)
-  return `${next} / ${client.cycleTotal}`
+function parseCycleLength(value, cycle) {
+  if (String(value).toLowerCase() === 'bonus') {
+    if (!isEvenCycle(cycle)) return null
+    return 'bonus'
+  }
+  const n = Number(value)
+  if (![1, 2, 3, 4].includes(n)) return null
+  return n
 }
 
 function digitsOnly(s) {
@@ -78,23 +142,14 @@ function resolveStaff(code) {
   return staffDirectory.find((s) => s.code.toUpperCase() === normalized) || null
 }
 
-function emptyForm(client) {
-  const now = new Date()
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16)
+function emptyForm() {
   return {
-    dateTime: local,
     sessionType: sessionTypes[0],
-    cycle: client ? nextCycleLabel(client) : '',
-    sex: client?.sex || 'M',
-    amount: '',
-    settled: true,
-    bonus: '0',
-    lunez: '0',
-    therapists: [therapists[0]],
+    massageType: DEFAULT_MASSAGE_TYPE,
+    amount: String(DEFAULT_AMOUNT),
+    lunez: false,
+    lunezAmount: String(DEFAULT_LUNEZ_AMOUNT),
     hands: '2',
-    comments: '',
     staffCode: '',
   }
 }
@@ -103,11 +158,22 @@ function emptyClientForm() {
   return {
     name: '',
     phone: '',
+    other_phones: '',
     sex: 'M',
-    badge: 'New Client',
-    cycleTotal: '4',
+    cycle: '0',
+    cycle_length: '4',
+    adult: true,
     staffCode: '',
+    phoneCode: generatePhoneCode(),
   }
+}
+
+/** year + hour + minute, e.g. 20261215 */
+function generatePhoneCode(date = new Date()) {
+  const year = date.getFullYear()
+  const hour = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  return `${year}${hour}${min}`
 }
 
 function initialsFrom(name) {
@@ -124,25 +190,134 @@ export default function App() {
   const [results, setResults] = useState([])
   const [client, setClient] = useState(null)
   const [booked, setBooked] = useState({})
-  const [saved, setSaved] = useState(initialSavedSessions)
-  const [panel, setPanel] = useState(null) // 'session' | 'booked' | 'note' | 'create' | null
-  const [form, setForm] = useState(emptyForm(null))
-  const [clientForm, setClientForm] = useState(emptyClientForm())
-  const [editingId, setEditingId] = useState(null)
+  const [saved, setSaved] = useState([])
+  const [panel, setPanel] = useState(null) // 'session' | 'booked' | 'note' | 'preferences' | 'create' | null
+  const [form, setForm] = useState(emptyForm)
+  const [clientForm, setClientForm] = useState(emptyClientForm)
   const [note, setNote] = useState('')
+  const [noteStaffCode, setNoteStaffCode] = useState('')
   const [noteSent, setNoteSent] = useState(false)
+  const [sendingNote, setSendingNote] = useState(false)
+  const [preferencesText, setPreferencesText] = useState('')
+  const [savingPreferences, setSavingPreferences] = useState(false)
   const [dateFilter, setDateFilter] = useState('today') // today | yesterday | pick
   const [pickedDate, setPickedDate] = useState(() => todayISO().toISOString().slice(0, 10))
+  /** day = date filter; client = all sessions for selected client (by cycle) */
+  const [listMode, setListMode] = useState('day') // day | client
   const [bookedStaffCode, setBookedStaffCode] = useState('')
   const [toast, setToast] = useState('')
+  const [savingClient, setSavingClient] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [savingSession, setSavingSession] = useState(false)
+  const [loadingSessions, setLoadingSessions] = useState(false)
+  const [activeSession, setActiveSession] = useState(null)
+  const [assignSession, setAssignSession] = useState(null)
+  const [verifySession, setVerifySession] = useState(null)
+  const [verifyCode, setVerifyCode] = useState('')
+  const [verifyBusy, setVerifyBusy] = useState(false)
+  const [receiptLightbox, setReceiptLightbox] = useState('')
 
-  const clientBookings = client ? booked[client.id] || bookedByClient[client.id] || [] : []
-  const editingSession = editingId ? saved.find((s) => s.id === editingId) : null
+  const clientBookings = client
+    ? booked[clientKey(client)] || bookedByClient[clientKey(client)] || []
+    : []
+  const canSearch = query.trim().length >= 3
 
   function showToast(msg) {
     setToast(msg)
     setTimeout(() => setToast(''), 2800)
   }
+
+  async function refreshSessions(opts = {}) {
+    setLoadingSessions(true)
+    try {
+      const result = await listPosSessions(opts)
+      if (!result.ok) {
+        showToast(result.error)
+        if (opts.phone) setSaved([])
+        return
+      }
+      setSaved((prev) => {
+        const byCode = new Map(
+          prev.filter((s) => s.sessionCode).map((s) => [s.sessionCode, s]),
+        )
+        return result.sessions.map((s) => {
+          const existing = s.sessionCode ? byCode.get(s.sessionCode) : null
+          if (!existing) return s
+          return {
+            ...s,
+            // Sessions now always include payment_methods (possibly []).
+            paymentMethods: Array.isArray(s.paymentMethods)
+              ? s.paymentMethods
+              : existing.paymentMethods || [],
+            staffCode: s.staffCode || existing.staffCode || '',
+            staffName: s.staffName || existing.staffName || '',
+            sessionCreatorName: s.sessionCreatorName || existing.sessionCreatorName || '',
+            therapists:
+              Array.isArray(s.therapists) && s.therapists.length > 0
+                ? s.therapists
+                : existing.therapists || [],
+            therapistLabel:
+              formatSessionTherapistsLabel(s.sessionTherapists) ||
+              (Array.isArray(s.therapists) && s.therapists.length > 0
+                ? s.therapists.join(', ')
+                : '') ||
+              existing.therapistLabel ||
+              '',
+            sessionTherapists:
+              Array.isArray(s.sessionTherapists) && s.sessionTherapists.length > 0
+                ? s.sessionTherapists
+                : existing.sessionTherapists || [],
+            clientName: s.clientName || existing.clientName || '',
+            clientPhone: s.clientPhone || existing.clientPhone || '',
+          }
+        })
+      })
+      setActiveSession((cur) => {
+        if (!cur?.sessionCode) return cur
+        const next = result.sessions.find((s) => s.sessionCode === cur.sessionCode)
+        if (!next) return cur
+        return {
+          ...next,
+          paymentMethods: Array.isArray(next.paymentMethods)
+            ? next.paymentMethods
+            : cur.paymentMethods || [],
+          staffCode: next.staffCode || cur.staffCode || '',
+          sessionCreatorName: next.sessionCreatorName || cur.sessionCreatorName || '',
+          sessionTherapists:
+            Array.isArray(next.sessionTherapists) && next.sessionTherapists.length > 0
+              ? next.sessionTherapists
+              : cur.sessionTherapists || [],
+          therapists:
+            Array.isArray(next.therapists) && next.therapists.length > 0
+              ? next.therapists
+              : cur.therapists || [],
+          therapistLabel:
+            formatSessionTherapistsLabel(next.sessionTherapists) ||
+            (Array.isArray(next.therapists) && next.therapists.length > 0
+              ? next.therapists.join(', ')
+              : '') ||
+            cur.therapistLabel ||
+            '',
+          clientName: next.clientName || cur.clientName || '',
+          clientPhone: next.clientPhone || cur.clientPhone || '',
+        }
+      })
+      setAssignSession((cur) => {
+        if (!cur?.sessionCode) return cur
+        const next = result.sessions.find((s) => s.sessionCode === cur.sessionCode)
+        return next || cur
+      })
+    } catch (err) {
+      showToast(err?.message || 'Could not load sessions')
+    } finally {
+      setLoadingSessions(false)
+    }
+  }
+
+  useEffect(() => {
+    refreshSessions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function requireStaff(code) {
     const staff = resolveStaff(code)
@@ -153,107 +328,179 @@ export default function App() {
     return staff
   }
 
-  function runSearch(e) {
+  async function runSearch(e) {
     e?.preventDefault()
-    const q = query.trim().toLowerCase()
-    setSearched(true)
-    setClient(null)
-    setPanel(null)
-    setEditingId(null)
-    setNoteSent(false)
-
-    if (!q) {
-      setResults([])
+    const q = query.trim()
+    if (q.length < 3) {
+      showToast('Type at least 3 characters to search')
       return
     }
+    if (searching) return
 
-    const qDigits = digitsOnly(q)
-    const found = clientList.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (qDigits.length >= 3 && c.phoneDigits.includes(qDigits)) ||
-        c.phone.toLowerCase().includes(q),
-    )
-    setResults(found)
+    setSearched(true)
+    setClient(null)
+    setListMode('day')
+    setPanel(null)
+    setActiveSession(null)
+    setAssignSession(null)
+    setVerifySession(null)
+    setNoteSent(false)
+    setSearching(true)
+
+    try {
+      const result = await searchPosClients(q)
+      if (!result.ok) {
+        setResults([])
+        showToast(result.error)
+        return
+      }
+      setResults(result.clients)
+      setClientList((list) => {
+        const byPhone = new Map(list.map((c) => [clientKey(c), c]))
+        result.clients.forEach((c) => byPhone.set(clientKey(c), c))
+        return Array.from(byPhone.values())
+      })
+    } catch (err) {
+      setResults([])
+      showToast(err?.message || 'Network error — could not search')
+    } finally {
+      setSearching(false)
+    }
   }
 
   function openCreateClient() {
     setClient(null)
+    setListMode('day')
     setResults([])
-    setEditingId(null)
+    setActiveSession(null)
+    setAssignSession(null)
+    setVerifySession(null)
     setClientForm(emptyClientForm())
     setPanel('create')
   }
 
-  function createClient(e) {
+  async function saveClientForm(e) {
     e?.preventDefault()
+    if (savingClient) return
+
     const name = clientForm.name.trim()
-    const phone = clientForm.phone.trim()
-    const staff = resolveStaff(clientForm.staffCode)
-    if (!staff) {
-      showToast('Enter a valid staff unique code')
+    const code = clientForm.staffCode.trim()
+    const otherPhones = clientForm.other_phones.trim()
+
+    if (!code) {
+      showToast('Enter a staff unique code')
       return
     }
-    if (!name || !phone) {
-      showToast('Name and phone are required')
+    if (clientForm.cycle === '' || clientForm.cycle == null) {
+      showToast('Cycle is required')
+      return
+    }
+    if (!clientForm.cycle_length) {
+      showToast('Cycle length is required')
+      return
+    }
+    if (!clientForm.sex) {
+      showToast('Sex is required')
+      return
+    }
+
+    const phone = clientForm.phone.trim() || clientForm.phoneCode
+    if (!phone) {
+      showToast('Phone is required')
       return
     }
     const phoneDigits = digitsOnly(phone)
     if (phoneDigits.length < 7) {
-      showToast('Enter a valid phone number')
-      return
-    }
-    const duplicate = clientList.find(
-      (c) => c.phoneDigits === phoneDigits || c.name.toLowerCase() === name.toLowerCase(),
-    )
-    if (duplicate) {
-      showToast('Client already exists — search instead')
+      showToast('Enter a valid phone number or use the generated code')
       return
     }
 
-    const cycleTotal = Math.max(1, Number(clientForm.cycleTotal) || 4)
-    const newClient = {
-      id: `c-${Date.now()}`,
-      name,
-      phone,
-      phoneDigits,
-      initials: initialsFrom(name),
-      badge: clientForm.badge || 'New Client',
-      sex: clientForm.sex,
-      cycleCurrent: 0,
-      cycleTotal,
-      totalSessions: 0,
-      completed: 0,
-      upcoming: 0,
-      createdByCode: staff.code,
-      createdByName: staff.name,
+    const cycle = Math.max(0, Number(clientForm.cycle) || 0)
+    const cycleLength = parseCycleLength(clientForm.cycle_length, cycle)
+    if (!cycleLength) {
+      showToast(
+        clientForm.cycle_length === 'bonus' && !isEvenCycle(cycle)
+          ? 'Bonus is only available when cycle is an even number'
+          : 'Select a valid cycle length',
+      )
+      return
     }
 
-    setClientList((list) => [newClient, ...list])
-    setBooked((prev) => ({ ...prev, [newClient.id]: [] }))
-    setPanel(null)
-    setClientForm(emptyClientForm())
-    selectClient(newClient)
-    showToast(`Client created by ${staff.name}`)
+    setSavingClient(true)
+    try {
+      const result = await createPosClient({
+        code,
+        client: {
+          name,
+          phone,
+          other_phones: otherPhones,
+          sex: clientForm.sex,
+          cycle,
+          cycle_length: cycleLength,
+          adult: !!clientForm.adult,
+        },
+      })
+
+      if (!result.ok) {
+        showToast(result.error)
+        return
+      }
+
+      const savedClient = normalizeClient(result.client)
+      const key = clientKey(savedClient)
+      setClientList((list) => {
+        const without = list.filter((c) => clientKey(c) !== key)
+        return [savedClient, ...without]
+      })
+      setBooked((prev) => ({ ...prev, [key]: prev[key] || [] }))
+      setPanel(null)
+      setClientForm(emptyClientForm())
+      selectClient(savedClient)
+      showToast(`Client created by ${savedClient.created_by || code}`)
+    } catch (err) {
+      showToast(err?.message || 'Network error — could not reach API')
+    } finally {
+      setSavingClient(false)
+    }
   }
 
   function selectClient(c) {
     setClient(c)
     setResults([])
     setPanel(null)
-    setForm(emptyForm(c))
-    setEditingId(null)
+    setForm(emptyForm())
+    setActiveSession(null)
+    setAssignSession(null)
+    setVerifySession(null)
     setNote('')
     setNoteSent(false)
-    if (!booked[c.id]) {
-      setBooked((prev) => ({ ...prev, [c.id]: [...(bookedByClient[c.id] || [])] }))
+    const key = clientKey(c)
+    if (key && !booked[key]) {
+      setBooked((prev) => ({ ...prev, [key]: [...(bookedByClient[key] || [])] }))
     }
+    setListMode('day')
+  }
+
+  async function openClientSessions() {
+    if (!client?.phone) {
+      showToast('Client phone required')
+      return
+    }
+    setPanel(null)
+    setActiveSession(null)
+    setAssignSession(null)
+    setVerifySession(null)
+    setListMode('client')
+    await refreshSessions({ phone: client.phone })
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
   }
 
   function openAddSession() {
     if (!client) return
-    setEditingId(null)
-    setForm(emptyForm(client))
+    setActiveSession(null)
+    setAssignSession(null)
+    setVerifySession(null)
+    setForm(emptyForm())
     setPanel('session')
   }
 
@@ -264,119 +511,131 @@ export default function App() {
 
   function openNote() {
     setNoteSent(false)
+    setNote('')
+    setNoteStaffCode('')
     setPanel('note')
+  }
+
+  function openPreferences() {
+    setPreferencesText(client?.preferences || '')
+    setPanel('preferences')
+  }
+
+  async function savePreferences(e) {
+    e?.preventDefault()
+    if (savingPreferences || !client?.phone) return
+    setSavingPreferences(true)
+    try {
+      const result = await updatePosClientPreferences({
+        phone: client.phone,
+        client_preferences: preferencesText,
+      })
+      if (!result.ok) {
+        showToast(result.error)
+        return
+      }
+      const saved = normalizeClient(result.client)
+      const key = clientKey(saved)
+      setClient(saved)
+      setClientList((list) => {
+        const without = list.filter((c) => clientKey(c) !== key)
+        return [saved, ...without]
+      })
+      setPreferencesText(saved.preferences || '')
+      showToast('Preferences saved')
+    } catch (err) {
+      showToast(err?.message || 'Could not save preferences')
+    } finally {
+      setSavingPreferences(false)
+    }
   }
 
   function updateForm(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  function toggleTherapist(name) {
-    setForm((f) => {
-      const has = f.therapists.includes(name)
-      const next = has ? f.therapists.filter((t) => t !== name) : [...f.therapists, name]
-      return { ...f, therapists: next.length ? next : f.therapists }
-    })
-  }
-
-  function saveSession(e) {
+  async function saveSession(e) {
     e?.preventDefault()
-    if (!client && !editingId) return
-    const staff = requireStaff(form.staffCode)
-    if (!staff) return
-    if (!form.amount || Number(form.amount) <= 0) {
+    if (savingSession) return
+    if (!client) return
+
+    const st = String(form.staffCode || '').trim()
+    if (!st) {
+      showToast('Enter a staff unique code')
+      return
+    }
+    if (form.amount === '' || Number(form.amount) < 0) {
       showToast('Enter a valid amount')
       return
     }
-    if (!form.therapists.length) {
-      showToast('Assign at least one therapist')
+    if (!form.hands) {
+      showToast('Select hands')
+      return
+    }
+    if (!form.sessionType) {
+      showToast('Select session type')
+      return
+    }
+    if (!form.massageType) {
+      showToast('Select massage type')
       return
     }
 
-    const dateTime = new Date(form.dateTime).toISOString()
+    setSavingSession(true)
+    try {
+      const result = await createPosSession({
+        st,
+        client_phone: client.phone,
+        session: {
+          session_type: form.sessionType,
+          massage_type: form.massageType,
+          amount: form.amount,
+          lunez: !!form.lunez,
+          lunez_amount: form.lunez ? form.lunezAmount : 0,
+          hands: form.hands,
+        },
+      })
 
-    if (editingId) {
-      const existing = saved.find((s) => s.id === editingId)
-      if (!existing) {
-        showToast('Session not found')
-        return
-      }
-      if (!canEdit(existing)) {
-        showToast('Edit unavailable after 36 hrs')
-        return
-      }
-      if (!staffMayEdit(existing, staff)) {
-        showToast(
-          `Only ${existing.staffName || 'the creating staff'} (${existing.staffCode}) can edit this session`,
-        )
+      if (!result.ok) {
+        showToast(result.error)
         return
       }
 
-      setSaved((list) =>
-        list.map((s) =>
-          s.id === editingId
-            ? {
-                ...s,
-                dateTime,
-                sessionType: form.sessionType,
-                cycle: form.cycle,
-                amount: Number(form.amount),
-                settled: form.settled,
-                bonus: Number(form.bonus) || 0,
-                lunez: Number(form.lunez) || 0,
-                therapists: form.therapists,
-                hands: form.hands,
-                sex: form.sex,
-                comments: form.comments,
-                // Keep original creator; record who last updated
-                updatedByCode: staff.code,
-                updatedByName: staff.name,
-              }
-            : s,
-        ),
-      )
-      showToast(`Session updated by ${staff.name}`)
-      setEditingId(null)
+      const row = normalizeSession(result.session, {
+        clientName: client.name,
+        clientPhone: client.phone,
+        staffCode: st,
+        staffName: resolveStaff(st)?.name || st,
+      })
+      setSaved((list) => [
+        row,
+        ...list.filter((s) => s.sessionCode !== row.sessionCode),
+      ])
+      setClient((c) => {
+        if (!c) return c
+        const api = result.session
+        const nextCycle = api.cycle ?? c.cycle
+        const nextLength = api.cycle_length ?? c.cycle_length
+        return {
+          ...c,
+          cycle: nextCycle,
+          cycle_length: nextLength,
+          cycleCurrent: nextCycle,
+          cycleTotal: nextLength,
+          totalSessions: (c.totalSessions || 0) + 1,
+          pendingSessions: (c.pendingSessions || 0) + 1,
+        }
+      })
+      setForm(emptyForm())
       setPanel(null)
-      return
+      setDateFilter('today')
+      showToast('Session saved')
+      refreshSessions(listMode === 'client' ? { phone: client.phone } : undefined)
+    } catch (err) {
+      showToast(err?.message || 'Network error — could not save session')
+    } finally {
+      setSavingSession(false)
     }
-
-    const row = {
-      id: `s-${Date.now()}`,
-      clientId: client.id,
-      clientName: client.name,
-      dateTime,
-      sessionType: form.sessionType,
-      cycle: form.cycle,
-      amount: Number(form.amount),
-      settled: form.settled,
-      bonus: Number(form.bonus) || 0,
-      lunez: Number(form.lunez) || 0,
-      therapists: form.therapists,
-      hands: form.hands,
-      sex: form.sex,
-      comments: form.comments,
-      status: 'Pending',
-      source: 'new',
-      staffCode: staff.code,
-      staffName: staff.name,
-    }
-
-    setSaved((list) => [row, ...list])
-    setClient((c) =>
-      c
-        ? {
-            ...c,
-            cycleCurrent: Math.min(c.cycleCurrent + 1, c.cycleTotal),
-            totalSessions: c.totalSessions + 1,
-            upcoming: Math.max(0, c.upcoming),
-          }
-        : c,
-    )
-    setForm(emptyForm({ ...client, cycleCurrent: Math.min(client.cycleCurrent + 1, client.cycleTotal) }))
-    setPanel(null)
-    setDateFilter('today')
-    showToast(`Session saved by ${staff.name}`)
   }
 
   function addBookedToSessions(booking) {
@@ -384,24 +643,23 @@ export default function App() {
     const staff = requireStaff(bookedStaffCode)
     if (!staff) return
     const now = new Date()
+    const key = clientKey(client)
     const row = {
       id: `s-${Date.now()}`,
-      clientId: client.id,
+      clientPhone: client.phone,
       clientName: client.name,
       dateTime: now.toISOString(),
       sessionType: booking.sessionType,
       cycle: booking.cycle,
       amount: booking.amount,
       settled: false,
-      bonus: booking.bonus || 0,
-      lunez: booking.lunez || 0,
-      therapists: booking.therapists,
+      lunez: !!booking.lunez,
+      lunezAmount: 0,
       hands: booking.hands,
-      sex: booking.sex || client.sex,
-      comments: `From booking ${booking.date}`,
-      status: 'Pending',
+      comments: [],
+      status: 'pending',
       source: 'booked',
-      bookingId: booking.id,
+      sessionCode: '',
       staffCode: staff.code,
       staffName: staff.name,
     }
@@ -409,57 +667,190 @@ export default function App() {
     setSaved((list) => [row, ...list])
     setBooked((prev) => ({
       ...prev,
-      [client.id]: (prev[client.id] || []).filter((b) => b.id !== booking.id),
+      [key]: (prev[key] || []).filter((b) => b.id !== booking.id),
     }))
     setBookedStaffCode('')
     setDateFilter('today')
     showToast(`Booked session added by ${staff.name}`)
   }
 
-  function startEdit(session) {
-    if (!canEdit(session)) {
-      showToast('Edit unavailable after 36 hrs')
+  function upsertSavedSession(next) {
+    const code = next.sessionCode
+    setSaved((list) => {
+      const without = code
+        ? list.filter((s) => s.sessionCode !== code)
+        : list
+      return [next, ...without]
+    })
+    setActiveSession((cur) =>
+      cur && code && cur.sessionCode === code ? next : cur,
+    )
+    setAssignSession((cur) =>
+      cur && code && cur.sessionCode === code ? next : cur,
+    )
+  }
+
+  function removeSavedSession(sessionCode) {
+    setSaved((list) => list.filter((s) => s.sessionCode !== sessionCode))
+    if (listMode === 'client' && client?.phone) refreshSessions({ phone: client.phone })
+    else refreshSessions()
+  }
+
+  function sessionTimeControls(s) {
+    const confirmed = String(s.status || '').toLowerCase() === 'confirmed'
+    const started = hasSessionTime(s.startTime)
+    const ended = hasSessionTime(s.endTime)
+    return {
+      showStart: !confirmed && !started,
+      showEnd: !confirmed && started && !ended,
+    }
+  }
+
+  async function startSavedSession(s) {
+    if (!s.sessionCode) {
+      showToast('Session code required')
       return
     }
-    const local = new Date(new Date(session.dateTime).getTime() - new Date().getTimezoneOffset() * 60000)
-      .toISOString()
-      .slice(0, 16)
-    setEditingId(session.id)
-    setClient(clientList.find((c) => c.id === session.clientId) || client)
-    setForm({
-      dateTime: local,
-      sessionType: session.sessionType,
-      cycle: session.cycle,
-      sex: session.sex || 'M',
-      amount: String(session.amount),
-      settled: session.settled,
-      bonus: String(session.bonus ?? 0),
-      lunez: String(session.lunez ?? 0),
-      therapists: session.therapists,
-      hands: session.hands,
-      comments: session.comments || '',
-      staffCode: '',
-    })
-    setPanel('session')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    try {
+      const result = await setPosSessionTimes({
+        sessionCode: s.sessionCode,
+        start_time: nowTimeOfDay(),
+      })
+      if (!result.ok) {
+        showToast(result.error)
+        return
+      }
+      const row = normalizeSession(result.session, {
+        clientName: s.clientName,
+        clientPhone: s.clientPhone,
+        staffCode: s.staffCode,
+        paymentMethods: s.paymentMethods,
+        sessionTherapists: s.sessionTherapists,
+      })
+      upsertSavedSession(row)
+      showToast('Session started')
+    } catch (err) {
+      showToast(err?.message || 'Could not start session')
+    }
   }
 
-  function completeClient(session) {
-    setSaved((list) =>
-      list.map((s) => (s.id === session.id ? { ...s, status: 'Completed', settled: true } : s)),
-    )
-    showToast(`${session.clientName} marked complete`)
+  async function endSavedSession(s) {
+    if (!s.sessionCode) {
+      showToast('Session code required')
+      return
+    }
+    const start = toTimeOfDay(s.startTime)
+    if (!start) {
+      showToast('Start time is required before ending')
+      return
+    }
+    try {
+      const result = await setPosSessionTimes({
+        sessionCode: s.sessionCode,
+        start_time: start,
+        end_time: nowTimeOfDay(),
+      })
+      if (!result.ok) {
+        showToast(result.error)
+        return
+      }
+      const row = normalizeSession(result.session, {
+        clientName: s.clientName,
+        clientPhone: s.clientPhone,
+        staffCode: s.staffCode,
+        paymentMethods: s.paymentMethods,
+        sessionTherapists: s.sessionTherapists,
+      })
+      upsertSavedSession(row)
+      showToast('Session ended')
+    } catch (err) {
+      showToast(err?.message || 'Could not end session')
+    }
   }
 
-  function sendNote(e) {
+  function openVerifyPayment(s) {
+    setVerifySession(s)
+    setVerifyCode('')
+  }
+
+  function closeVerifyPayment() {
+    setVerifySession(null)
+    setVerifyCode('')
+    setVerifyBusy(false)
+  }
+
+  async function submitVerifyPayment(e) {
     e?.preventDefault()
+    if (!verifySession?.sessionCode) {
+      showToast('Session code required')
+      return
+    }
+    if (!verifyCode.trim()) {
+      showToast('Enter therapist or admin code')
+      return
+    }
+    if (verifyBusy) return
+    setVerifyBusy(true)
+    try {
+      const result = await verifyPosSessionPayment({
+        sessionCode: verifySession.sessionCode,
+        code: verifyCode.trim(),
+      })
+      if (!result.ok) {
+        showToast(result.error)
+        return
+      }
+      const row = normalizeSession(result.session, {
+        clientName: verifySession.clientName,
+        clientPhone: verifySession.clientPhone,
+        staffCode: verifySession.staffCode,
+        paymentMethods: verifySession.paymentMethods,
+        sessionTherapists: verifySession.sessionTherapists,
+      })
+      upsertSavedSession(row)
+      closeVerifyPayment()
+      showToast('Payment verified')
+    } catch (err) {
+      showToast(err?.message || 'Could not verify payment')
+    } finally {
+      setVerifyBusy(false)
+    }
+  }
+
+  async function sendNote(e) {
+    e?.preventDefault()
+    if (sendingNote) return
+    if (!client?.phone) {
+      showToast('Client phone required')
+      return
+    }
+    if (!noteStaffCode.trim()) {
+      showToast('Enter your therapist code')
+      return
+    }
     if (!note.trim()) {
       showToast('Write a note first')
       return
     }
-    setNoteSent(true)
-    setNote('')
-    showToast('Note sent to admin')
+    setSendingNote(true)
+    try {
+      const result = await createPosAdminNote({
+        st: noteStaffCode.trim(),
+        phone: client.phone,
+        admin_note: { body: note.trim(), status: 'open' },
+      })
+      if (!result.ok) {
+        showToast(result.error)
+        return
+      }
+      setNoteSent(true)
+      setNote('')
+      showToast('Admin note created')
+    } catch (err) {
+      showToast(err?.message || 'Could not create admin note')
+    } finally {
+      setSendingNote(false)
+    }
   }
 
   const filterDate = useMemo(() => {
@@ -473,10 +864,24 @@ export default function App() {
   }, [dateFilter, pickedDate])
 
   const filteredSaved = useMemo(() => {
+    if (listMode === 'client' && client?.phone) {
+      const phone = String(client.phone).replace(/\D/g, '')
+      return [...saved]
+        .filter((s) => {
+          const sp = String(s.clientPhone || '').replace(/\D/g, '')
+          return sp && phone && (sp === phone || sp.endsWith(phone) || phone.endsWith(sp))
+        })
+        .sort((a, b) => {
+          const ca = Number(a.cycleNum) || 0
+          const cb = Number(b.cycleNum) || 0
+          if (ca !== cb) return ca - cb
+          return new Date(a.dateTime) - new Date(b.dateTime)
+        })
+    }
     return saved
       .filter((s) => startOfDay(s.dateTime).getTime() === filterDate.getTime())
       .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime))
-  }, [saved, filterDate])
+  }, [saved, filterDate, listMode, client])
 
   return (
     <div className="fd">
@@ -510,8 +915,8 @@ export default function App() {
               placeholder="Search client by name or phone number"
               aria-label="Search client"
             />
-            <button type="submit" className="btn primary">
-              Search
+            <button type="submit" className="btn primary" disabled={!canSearch || searching}>
+              {searching ? 'Searching…' : 'Search'}
             </button>
             <button type="button" className="btn outline" onClick={openCreateClient}>
               + Create Client
@@ -534,88 +939,181 @@ export default function App() {
         )}
 
         {panel === 'create' && (
-          <section className="card panel-card">
+          <section className="card panel-card create-panel">
             <div className="panel-head">
-              <h2>Create Client</h2>
-              <button type="button" className="text-btn" onClick={() => setPanel(null)}>
-                Close
+              <h2>
+                <span className="panel-icon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4 20c1.5-3.5 4.2-5 8-5s6.5 1.5 8 5" />
+                  </svg>
+                </span>
+                Create Client
+              </h2>
+              <button type="button" className="text-btn close-btn" onClick={() => setPanel(null)}>
+                Close ✕
               </button>
             </div>
-            <form className="session-form create-form" onSubmit={createClient}>
-              <label>
-                Full name
-                <input
-                  value={clientForm.name}
-                  onChange={(e) => setClientForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Imran Khan"
-                  required
-                />
-              </label>
-              <label>
-                Phone number
-                <input
-                  value={clientForm.phone}
-                  onChange={(e) => setClientForm((f) => ({ ...f, phone: e.target.value }))}
-                  placeholder="+92 300 000 0000"
-                  required
-                />
-              </label>
-              <fieldset className="seg">
-                <legend>Sex</legend>
-                {['M', 'F', 'Other'].map((s) => (
+            <form className="create-form" onSubmit={saveClientForm}>
+              <div className="create-row two">
+                <label>
+                  Name
+                  <input
+                    value={clientForm.name}
+                    onChange={(e) => setClientForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="Optional"
+                  />
+                </label>
+                <label className="staff-code-field">
+                  Staff unique code <em>*</em>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    value={clientForm.staffCode}
+                    onChange={(e) => setClientForm((f) => ({ ...f, staffCode: e.target.value }))}
+                    placeholder="e.g. ADA1"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="create-row two">
+                <label>
+                  Phone <em>*</em>
+                  <span className="phone-code-hint">
+                    No number? Use code{' '}
+                    <button
+                      type="button"
+                      className="phone-code-btn"
+                      title="Copy code"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(clientForm.phoneCode)
+                          showToast('Code copied')
+                        } catch {
+                          setClientForm((f) => ({ ...f, phone: f.phoneCode }))
+                          showToast('Code filled into phone')
+                        }
+                      }}
+                    >
+                      {clientForm.phoneCode}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-btn use-code-btn"
+                      onClick={() => setClientForm((f) => ({ ...f, phone: f.phoneCode }))}
+                    >
+                      Use
+                    </button>
+                  </span>
+                  <input
+                    value={clientForm.phone}
+                    onChange={(e) => setClientForm((f) => ({ ...f, phone: e.target.value }))}
+                    placeholder="Phone number or paste generated code"
+                  />
+                  <span className="field-hint">Leave blank to save with the generated code above</span>
+                </label>
+                <label>
+                  Other phones
+                  <textarea
+                    rows={4}
+                    value={clientForm.other_phones}
+                    onChange={(e) => setClientForm((f) => ({ ...f, other_phones: e.target.value }))}
+                    placeholder="Optional — extra numbers, one per line or comma-separated"
+                  />
+                </label>
+              </div>
+
+              <div className="create-row three split">
+                <fieldset className="seg">
+                  <legend>
+                    Sex <em>*</em>
+                  </legend>
+                  {['M', 'F', 'Other'].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={clientForm.sex === s ? 'active' : ''}
+                      onClick={() => setClientForm((f) => ({ ...f, sex: s }))}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </fieldset>
+                <fieldset className="seg">
+                  <legend>
+                    Adult <em>*</em>
+                  </legend>
                   <button
-                    key={s}
                     type="button"
-                    className={clientForm.sex === s ? 'active' : ''}
-                    onClick={() => setClientForm((f) => ({ ...f, sex: s }))}
+                    className={clientForm.adult ? 'active' : ''}
+                    onClick={() => setClientForm((f) => ({ ...f, adult: true }))}
                   >
-                    {s}
+                    Yes
                   </button>
-                ))}
-              </fieldset>
-              <label>
-                Badge
-                <select
-                  value={clientForm.badge}
-                  onChange={(e) => setClientForm((f) => ({ ...f, badge: e.target.value }))}
-                >
-                  <option>New Client</option>
-                  <option>Regular Client</option>
-                  <option>VIP</option>
-                </select>
-              </label>
-              <label>
-                Cycle length
-                <input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={clientForm.cycleTotal}
-                  onChange={(e) => setClientForm((f) => ({ ...f, cycleTotal: e.target.value }))}
-                />
-              </label>
-              <label className="staff-code-field">
-                Staff unique code
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={clientForm.staffCode}
-                  onChange={(e) => setClientForm((f) => ({ ...f, staffCode: e.target.value }))}
-                  placeholder="e.g. FD-1001"
-                  required
-                />
-                <span className="field-hint">Required — identifies who created this client</span>
-              </label>
-              <div className="form-actions full">
+        <button
+          type="button"
+                    className={!clientForm.adult ? 'active' : ''}
+                    onClick={() => setClientForm((f) => ({ ...f, adult: false }))}
+                  >
+                    No
+                  </button>
+                </fieldset>
+                <label>
+                  Cycle <em>*</em>
+                  <input
+                    type="number"
+                    min="0"
+                    value={clientForm.cycle}
+                    onChange={(e) => {
+                      const cycle = e.target.value
+                      setClientForm((f) => {
+                        const next = { ...f, cycle }
+                        if (f.cycle_length === 'bonus' && !isEvenCycle(cycle)) {
+                          next.cycle_length = '4'
+                        }
+                        return next
+                      })
+                    }}
+                    required
+                  />
+                  <span className="field-hint">Current cycle position</span>
+                </label>
+              </div>
+
+              <div className="create-row two">
+                <label>
+                  Cycle length <em>*</em>
+                  <select
+                    value={clientForm.cycle_length}
+                    onChange={(e) => setClientForm((f) => ({ ...f, cycle_length: e.target.value }))}
+                    required
+                  >
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="bonus" disabled={!isEvenCycle(clientForm.cycle)}>
+                      bonus
+                    </option>
+                  </select>
+                  {!isEvenCycle(clientForm.cycle) && (
+                    <span className="field-hint">Bonus only when cycle is even (0, 2, 4…)</span>
+                  )}
+                </label>
+                <div className="create-spacer" aria-hidden="true" />
+              </div>
+
+              <div className="form-actions">
                 <button type="button" className="btn ghost" onClick={() => setPanel(null)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn primary">
-                  Save Client
-                </button>
+                <button type="submit" className="btn primary" disabled={savingClient}>
+                  {savingClient ? 'Saving…' : 'Save Client'}
+        </button>
               </div>
             </form>
-          </section>
+      </section>
         )}
 
         {results.length > 0 && !client && (
@@ -623,18 +1121,18 @@ export default function App() {
             <h2>Search results</h2>
             <ul className="result-list">
               {results.map((c) => (
-                <li key={c.id}>
+                <li key={clientKey(c) || c.phone || c.name}>
                   <button type="button" className="result-row" onClick={() => selectClient(c)}>
                     <span className="avatar lg">{c.initials}</span>
                     <span className="result-meta">
-                      <strong>{c.name}</strong>
-                      <em>{c.phone}</em>
+                      <strong>{c.name || c.phone || 'Unnamed client'}</strong>
+                      {c.name ? <em>{c.phone}</em> : null}
                     </span>
                     <span className="badge soft">{c.badge}</span>
                   </button>
-                </li>
+            </li>
               ))}
-            </ul>
+          </ul>
           </section>
         )}
 
@@ -645,34 +1143,59 @@ export default function App() {
                 <span className="avatar xl">{client.initials}</span>
                 <div>
                   <div className="name-row">
-                    <h1>{client.name}</h1>
-                    <span className="badge soft">{client.badge}</span>
+                    <h1>{client.name || client.phone || 'Unnamed client'}</h1>
+                    <span className="badge soft">
+                      {client.adult === false ? 'Minor' : client.badge || 'Adult'}
+                    </span>
+                    {client.sex && <span className="badge soft">{client.sex}</span>}
                   </div>
                   <p className="phone">{client.phone}</p>
-                  {client.createdByName && (
-                    <p className="created-by">
-                      Created by {client.createdByName} · {client.createdByCode}
-                    </p>
+                  {client.other_phones && (
+                    <p className="phone other-phones">Other: {client.other_phones}</p>
+                  )}
+                  {client.preferences ? (
+                    <p className="client-preferences">{client.preferences}</p>
+                  ) : (
+                    <p className="client-preferences muted">No preferences set</p>
+                  )}
+                  {(client.created_by || client.createdByName || client.created_at) && (
+                    <div className="client-meta">
+                      {(client.createdByName || client.created_by) && (
+                        <p className="created-by">
+                          Created by {client.createdByName || client.created_by}
+                        </p>
+                      )}
+                      {client.created_at && (
+                        <p className="created-date">
+                          Date:{' '}
+                          {new Date(client.created_at).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
 
               <div className="client-stats">
                 <div className="stat">
-                  <span className="stat-label">Current Cycle</span>
-                  <strong>
-                    {client.cycleCurrent} / {client.cycleTotal}
-                  </strong>
+                  <span className="stat-label">Tracking</span>
+                  <strong>Cycle {client.cycle ?? client.cycleCurrent ?? 0}</strong>
                   <em>
-                    {client.cycleCurrent} session{client.cycleCurrent === 1 ? '' : 's'} completed in
-                    current cycle
+                    Cycle length {(client.cycle_length ?? client.cycleTotal ?? 1)}/4
                   </em>
                 </div>
                 <div className="stat">
                   <span className="stat-label">Session History</span>
-                  <strong>{client.totalSessions} Total Sessions</strong>
+                  <strong>{client.totalSessions ?? 0} Total Sessions</strong>
                   <em>
-                    {client.completed} completed · {client.upcoming} upcoming
+                    {client.completedSessions ?? 0} completed ·{' '}
+                    {client.ongoingSessions ?? 0} ongoing ·{' '}
+                    {client.pendingSessions ?? 0} pending ·{' '}
+                    {client.disputedSessions ?? 0} disputed
                   </em>
                 </div>
               </div>
@@ -681,42 +1204,78 @@ export default function App() {
                 <button type="button" className="btn primary" onClick={openAddSession}>
                   + Add Session
                 </button>
+                <button type="button" className="btn outline" onClick={openClientSessions}>
+                  View sessions
+                </button>
                 {clientBookings.length > 0 && (
                   <button type="button" className="btn outline" onClick={openBooked}>
                     View Booked Sessions
                   </button>
                 )}
+                <button type="button" className="btn outline" onClick={openPreferences}>
+                  Preferences
+                </button>
                 <button type="button" className="btn outline" onClick={openNote}>
-                  Send Note to Admin
+                  Request client edit
                 </button>
               </div>
             </div>
           </section>
         )}
 
-        {panel === 'session' && (
-          <section className="card panel-card">
+        {panel === 'preferences' && client && (
+          <section className="card panel-card note-panel">
             <div className="panel-head">
-              <h2>{editingId ? 'Edit Session' : 'Add Session'}</h2>
-              <button type="button" className="text-btn" onClick={() => { setPanel(null); setEditingId(null) }}>
+              <h2>Client preferences</h2>
+              <button type="button" className="text-btn" onClick={() => setPanel(null)}>
                 Close
               </button>
             </div>
-            <form className="session-form" onSubmit={saveSession}>
-              <label>
-                Date & time
-                <input
-                  type="datetime-local"
-                  value={form.dateTime}
-                  onChange={(e) => updateForm('dateTime', e.target.value)}
-                  required
+            <p className="muted note-intro">
+              Update preferences for {client.name || client.phone}. No admin code required.
+            </p>
+            <form className="session-form" onSubmit={savePreferences}>
+              <label className="full">
+                Preferences
+                <textarea
+                  rows={4}
+                  maxLength={500}
+                  value={preferencesText}
+                  onChange={(e) => setPreferencesText(e.target.value)}
+                  placeholder="e.g. Light pressure, quiet room"
                 />
               </label>
+              <div className="note-foot full">
+                <span className="muted">{preferencesText.length}/500</span>
+                <button type="submit" className="btn primary" disabled={savingPreferences}>
+                  {savingPreferences ? 'Saving…' : 'Save preferences'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {panel === 'session' && (
+          <section className="card panel-card">
+            <div className="panel-head">
+              <h2>Add Session</h2>
+              <button type="button" className="text-btn" onClick={() => setPanel(null)}>
+                Close
+              </button>
+        </div>
+            {client && (
+              <p className="muted note-intro">
+                Saving for <strong>{client.name}</strong> · {client.phone}. Date and cycle are set by
+                the server.
+              </p>
+            )}
+            <form className="session-form" onSubmit={saveSession}>
               <label>
                 Session type
                 <select
                   value={form.sessionType}
                   onChange={(e) => updateForm('sessionType', e.target.value)}
+                  required
                 >
                   {sessionTypes.map((t) => (
                     <option key={t} value={t}>
@@ -726,86 +1285,81 @@ export default function App() {
                 </select>
               </label>
               <label>
-                Cycle
-                <input type="text" value={form.cycle} readOnly title="Auto-filled to next cycle" />
-                <span className="field-hint">Pre-filled to the next tracking number</span>
+                Massage type
+                <select
+                  value={form.massageType}
+                  onChange={(e) => updateForm('massageType', e.target.value)}
+                  required
+                >
+                  {massageTypes.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
               </label>
-              <fieldset className="seg">
-                <legend>Sex</legend>
-                {['M', 'F', 'Other'].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    className={form.sex === s ? 'active' : ''}
-                    onClick={() => updateForm('sex', s)}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </fieldset>
               <label>
-                Amount (Rs)
-                <input
-                  type="number"
-                  min="0"
+                Amount
+                <select
                   value={form.amount}
                   onChange={(e) => updateForm('amount', e.target.value)}
                   required
-                />
+                >
+                  {amountOptions.map((a) => (
+                    <option key={a} value={String(a)}>
+                      {a.toLocaleString()}
+                    </option>
+                  ))}
+                </select>
               </label>
               <fieldset className="seg">
-                <legend>Settled</legend>
+                <legend>Lunez</legend>
                 <button
                   type="button"
-                  className={form.settled ? 'active' : ''}
-                  onClick={() => updateForm('settled', true)}
+                  className={form.lunez ? 'active' : ''}
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      lunez: true,
+                      lunezAmount: String(DEFAULT_LUNEZ_AMOUNT_YES),
+                    }))
+                  }
                 >
                   Yes
                 </button>
                 <button
                   type="button"
-                  className={!form.settled ? 'active' : ''}
-                  onClick={() => updateForm('settled', false)}
+                  className={!form.lunez ? 'active' : ''}
+                  onClick={() =>
+                    setForm((f) => ({ ...f, lunez: false, lunezAmount: String(DEFAULT_LUNEZ_AMOUNT) }))
+                  }
                 >
                   No
                 </button>
               </fieldset>
-              <label>
-                Bonus
-                <input
-                  type="number"
-                  min="0"
-                  value={form.bonus}
-                  onChange={(e) => updateForm('bonus', e.target.value)}
-                />
-              </label>
-              <label>
-                Lunez
-                <input
-                  type="number"
-                  min="0"
-                  value={form.lunez}
-                  onChange={(e) => updateForm('lunez', e.target.value)}
-                />
-              </label>
-              <div className="therapist-field">
-                <span>Assigned therapists</span>
-                <div className="chip-row">
-                  {therapists.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      className={`chip ${form.therapists.includes(t) ? 'on' : ''}`}
-                      onClick={() => toggleTherapist(t)}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {form.lunez && (
+                <label>
+                  Lunez amount
+                  <select
+                    value={form.lunezAmount}
+                    onChange={(e) => updateForm('lunezAmount', e.target.value)}
+                    required
+                  >
+                    {lunezAmountOptions.map((a) => (
+                      <option key={a} value={String(a)}>
+                        {a.toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label>
                 Hands
-                <select value={form.hands} onChange={(e) => updateForm('hands', e.target.value)}>
+                <select
+                  value={form.hands}
+                  onChange={(e) => updateForm('hands', e.target.value)}
+                  required
+                >
                   {handsOptions.map((h) => (
                     <option key={h} value={h}>
                       {h}
@@ -813,50 +1367,50 @@ export default function App() {
                   ))}
                 </select>
               </label>
-              <label className="full">
-                Comments (optional)
-                <textarea
-                  rows={3}
-                  value={form.comments}
-                  onChange={(e) => updateForm('comments', e.target.value)}
-                  placeholder="Any notes for this session…"
-                />
-              </label>
               <label className="staff-code-field full">
-                Staff unique code
+                Staff unique code <em style={{ color: '#dc2626' }}>*</em>
                 <input
                   type="password"
                   autoComplete="off"
                   value={form.staffCode}
                   onChange={(e) => updateForm('staffCode', e.target.value)}
-                  placeholder="e.g. FD-1001"
+                  placeholder="e.g. ADA1"
                   required
                 />
-                <span className="field-hint">
-                  {editingId
-                    ? editingSession && isFromUnusedBooking(editingSession)
-                      ? 'Any valid staff code can edit sessions pulled from unused bookings'
-                      : `Must match the creator code (${editingSession?.staffCode || '—'})`
-                    : 'Required — who saved this session (admin audit)'}
-                </span>
+                <span className="field-hint">Therapist code that creates this session</span>
               </label>
               <div className="form-actions full">
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => {
-                    setPanel(null)
-                    setEditingId(null)
-                  }}
-                >
+                <button type="button" className="btn ghost" onClick={() => setPanel(null)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn primary">
-                  {editingId ? 'Update Session' : 'Save Session'}
+                <button type="submit" className="btn primary" disabled={savingSession}>
+                  {savingSession ? 'Saving…' : 'Save Session'}
                 </button>
               </div>
             </form>
           </section>
+        )}
+
+        {activeSession && (
+          <SessionActions
+            key={activeSession.sessionCode || 'session'}
+            session={activeSession}
+            clientName={activeSession.clientName || client?.name}
+            showToast={showToast}
+            onClose={() => setActiveSession(null)}
+            onUpdated={upsertSavedSession}
+            onDeleted={removeSavedSession}
+          />
+        )}
+
+        {assignSession && (
+          <SessionTherapists
+            key={`assign-${assignSession.sessionCode || 'session'}`}
+            session={assignSession}
+            showToast={showToast}
+            onClose={() => setAssignSession(null)}
+            onUpdated={upsertSavedSession}
+          />
         )}
 
         {panel === 'booked' && client && (
@@ -928,164 +1482,567 @@ export default function App() {
         {panel === 'note' && client && (
           <section className="card panel-card note-panel">
             <div className="panel-head">
-              <h2>Notes to Admin / Raise Ticket</h2>
+              <h2>Request client edit / Raise ticket</h2>
               <button type="button" className="text-btn" onClick={() => setPanel(null)}>
                 Close
               </button>
             </div>
-            <form onSubmit={sendNote}>
-              <textarea
-                rows={5}
-                maxLength={500}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={`e.g. Update ${client.name}'s phone number, change cycle, or raise a ticket…`}
-              />
-              <div className="note-foot">
+            <p className="muted note-intro">
+              Front desk cannot edit client details. Send an admin note for{' '}
+              {client.name || client.phone}.
+            </p>
+            <form className="session-form" onSubmit={sendNote}>
+              <label className="staff-code-field full">
+                <span>
+                  Your therapist code <em style={{ color: '#dc2626' }}>*</em>
+                </span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={noteStaffCode}
+                  onChange={(e) => setNoteStaffCode(e.target.value)}
+                  placeholder="code"
+                  required
+                />
+              </label>
+              <label className="full">
+                Note
+                <textarea
+                  rows={5}
+                  maxLength={500}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={`e.g. Please update ${client.name || 'client'}'s phone from ${client.phone} to …`}
+                  required
+                />
+              </label>
+              <div className="note-foot full">
                 <span className="muted">{note.length}/500</span>
-                <button type="submit" className="btn primary">
-                  Send to Admin
+                <button
+                  type="submit"
+                  className="btn primary"
+                  disabled={sendingNote || !note.trim() || !noteStaffCode.trim()}
+                >
+                  {sendingNote ? 'Sending…' : 'Send to Admin'}
                 </button>
               </div>
             </form>
-            {noteSent && <p className="success">Ticket sent. Admin will follow up.</p>}
+            {noteSent && <p className="success">Admin note created for this client.</p>}
             <ul className="note-examples">
-              <li>Update client phone / contact details</li>
-              <li>Request cycle adjustment</li>
-              <li>Flag a billing or therapist issue</li>
+              <li>Update name, phone, or other phones</li>
+              <li>Change cycle / cycle length / adult status</li>
+              <li>Correct sex or other profile details</li>
             </ul>
           </section>
         )}
 
         <section className="card saved-card">
           <div className="saved-head">
-            <h2>Saved Sessions</h2>
+            <h2>
+              {listMode === 'client' && client
+                ? `Sessions · ${client.name || client.phone}`
+                : 'Saved Sessions'}
+              {loadingSessions ? ' …' : ''}
+            </h2>
             <div className="date-filters">
-              <button
-                type="button"
-                className={dateFilter === 'today' ? 'active' : ''}
-                onClick={() => setDateFilter('today')}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                className={dateFilter === 'yesterday' ? 'active' : ''}
-                onClick={() => setDateFilter('yesterday')}
-              >
-                Yesterday
-              </button>
-              <button
-                type="button"
-                className={dateFilter === 'pick' ? 'active' : ''}
-                onClick={() => setDateFilter('pick')}
-              >
-                Pick Date
-              </button>
-              {dateFilter === 'pick' ? (
-                <input
-                  type="date"
-                  value={pickedDate}
-                  onChange={(e) => setPickedDate(e.target.value)}
-                />
+              {listMode === 'client' ? (
+                <>
+                  <span className="date-label">Ordered by cycle</span>
+                  <button
+                    type="button"
+                    className="btn small ghost"
+                    onClick={() => {
+                      setListMode('day')
+                      refreshSessions()
+                    }}
+                  >
+                    Back to day view
+                  </button>
+                  <button
+                    type="button"
+                    className="btn small ghost"
+                    onClick={() => refreshSessions({ phone: client.phone })}
+                  >
+                    Refresh
+                  </button>
+                </>
               ) : (
-                <span className="date-label">{formatLongDate(filterDate)}</span>
+                <>
+                  <button
+                    type="button"
+                    className={dateFilter === 'today' ? 'active' : ''}
+                    onClick={() => {
+                      setListMode('day')
+                      setDateFilter('today')
+                    }}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    className={dateFilter === 'yesterday' ? 'active' : ''}
+                    onClick={() => {
+                      setListMode('day')
+                      setDateFilter('yesterday')
+                    }}
+                  >
+                    Yesterday
+                  </button>
+                  <button
+                    type="button"
+                    className={dateFilter === 'pick' ? 'active' : ''}
+                    onClick={() => {
+                      setListMode('day')
+                      setDateFilter('pick')
+                    }}
+                  >
+                    Pick Date
+                  </button>
+                  {dateFilter === 'pick' ? (
+                    <input
+                      type="date"
+                      value={pickedDate}
+                      onChange={(e) => setPickedDate(e.target.value)}
+                    />
+                  ) : (
+                    <span className="date-label">{formatLongDate(filterDate)}</span>
+                  )}
+                  <button
+                    type="button"
+                    className="btn small ghost"
+                    onClick={() => refreshSessions()}
+                  >
+                    Refresh
+                  </button>
+                </>
               )}
             </div>
           </div>
 
           {filteredSaved.length === 0 ? (
-            <p className="muted empty-saved">No saved sessions for this day.</p>
+            <p className="muted empty-saved">
+              {loadingSessions
+                ? 'Loading sessions…'
+                : listMode === 'client'
+                  ? 'No sessions for this client.'
+                  : 'No saved sessions for this day.'}
+            </p>
           ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Date & Time</th>
-                    <th>Client</th>
-                    <th>Type</th>
-                    <th>Cycle</th>
-                    <th>Amount</th>
-                    <th>Settled</th>
-                    <th>Bonus</th>
-                    <th>Lunez</th>
-                    <th>Therapist(s)</th>
-                    <th>Hands</th>
-                    <th>Staff</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSaved.map((s, i) => {
-                    const editable = canEdit(s)
-                    return (
-                      <tr key={s.id}>
+            <>
+              <div className="session-table-desktop">
+                <table className="session-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>When</th>
+                      <th>Client</th>
+                      <th>Details</th>
+                      <th>Therapists</th>
+                      <th>Amount</th>
+                      <th>Payments</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSaved.map((s, i) => (
+                      <tr
+                        key={s.sessionCode || `row-${i}`}
+                        className={
+                          activeSession?.sessionCode &&
+                          activeSession.sessionCode === s.sessionCode
+                            ? 'row-active'
+                            : ''
+                        }
+                      >
                         <td>{i + 1}</td>
-                        <td>{formatDateTime(s.dateTime)}</td>
-                        <td>{s.clientName}</td>
-                        <td>{s.sessionType}</td>
-                        <td>{s.cycle}</td>
-                        <td>{formatMoney(s.amount)}</td>
-                        <td>{s.settled ? 'Yes' : 'No'}</td>
-                        <td>{s.bonus || 0}</td>
-                        <td>{s.lunez || 0}</td>
-                        <td>{s.therapists.join(', ')}</td>
-                        <td>{s.hands}</td>
                         <td>
-                          {s.staffName ? (
-                            <span title={s.staffCode}>
-                              {s.staffName}
-                              <em className="staff-code-tag"> {s.staffCode}</em>
-                            </span>
-                          ) : (
-                            '—'
-                          )}
+                          <div className="cell-stack">
+                            <strong>{formatDateTime(s.dateTime)}</strong>
+                            {sessionHistoryTrueLabels(s.sessionHistory).length > 0 && (
+                              <span className="session-history-flags">
+                                {sessionHistoryTrueLabels(s.sessionHistory).map((label) => (
+                                  <span key={label} className="history-flag">
+                                    {label}
+                                  </span>
+                                ))}
+                              </span>
+                            )}
+                            {Array.isArray(s.comments) && s.comments.length > 0 && (
+                              <span className="comments-flag">
+                                {s.comments.length}{' '}
+                                {s.comments.length === 1 ? 'comment' : 'comments'}
+                                {s.comments.some((c) => !c.resolved)
+                                  ? ` · ${s.comments.filter((c) => !c.resolved).length} open`
+                                  : ' · all resolved'}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td>
-                          <span className={`badge ${s.status === 'Completed' ? 'done' : 'pending'}`}>
+                          <div className="cell-stack">
+                            <strong>{s.clientName || '—'}</strong>
+                            {s.clientPhone && <span className="muted">{s.clientPhone}</span>}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="cell-stack session-details-cell">
+                            <strong>
+                              {[s.sessionType, s.massageType].filter(Boolean).join(' · ') ||
+                                '—'}
+                            </strong>
+                            <span className="muted">{formatSessionCycle(s)}</span>
+                            {s.hands ? (
+                              <span className="muted">{s.hands} hands</span>
+                            ) : null}
+                            <span className="muted">
+                              Start {s.startTime || '—'}
+                            </span>
+                            <span className="muted">
+                              End {s.endTime || '—'}
+                            </span>
+                            <span className="muted session-duration">
+                              Duration {formatDuration(s.duration)}
+                            </span>
+                            {s.sessionCreatorName ? (
+                              <span className="muted">Created by {s.sessionCreatorName}</span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="cell-stack">
+                            <span>
+                              {s.therapistLabel ||
+                                formatSessionTherapistsLabel(s.sessionTherapists) ||
+                                '—'}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn small primary"
+                              disabled={!s.sessionCode}
+                              onClick={() => {
+                                setPanel(null)
+                                setActiveSession(null)
+                                setAssignSession(s)
+                                window.scrollTo({ top: 0, behavior: 'smooth' })
+                              }}
+                            >
+                              Assign
+                            </button>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="cell-stack">
+                            <strong>{formatMoney(s.amount)}</strong>
+                            {s.lunez ? (
+                              <span className="muted">
+                                Lunez {formatMoney(s.lunezAmount || 0)}
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td>
+                          <PaymentMethodsDisplay
+                            paymentMethods={s.paymentMethods}
+                            onOpenReceipt={setReceiptLightbox}
+                          />
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              s.status === 'settled' ||
+                              s.status === 'completed' ||
+                              s.status === 'ended'
+                                ? 'done'
+                                : 'pending'
+                            }`}
+                          >
                             {s.status}
                           </span>
                         </td>
                         <td className="actions-cell">
-                          {editable && (
+                          <div className="session-row-actions">
+                            {sessionTimeControls(s).showStart && (
+                              <button
+                                type="button"
+                                className="btn small primary"
+                                disabled={!s.sessionCode}
+                                onClick={() => startSavedSession(s)}
+                              >
+                                Start
+                              </button>
+                            )}
+                            {sessionTimeControls(s).showEnd && (
+                              <button
+                                type="button"
+                                className="btn small primary"
+                                disabled={!s.sessionCode}
+                                onClick={() => endSavedSession(s)}
+                              >
+                                End
+                              </button>
+                            )}
+                            {!s.paymentVerified && (
+                              <button
+                                type="button"
+                                className="btn small primary"
+                                disabled={!s.sessionCode}
+                                onClick={() => openVerifyPayment(s)}
+                              >
+                                Verify payment
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="btn small ghost"
-                              title={
-                                isFromUnusedBooking(s)
-                                  ? 'Any staff can edit (from unused booking)'
-                                  : `Only ${s.staffName || 'creator'} (${s.staffCode}) can edit`
-                              }
-                              onClick={() => startEdit(s)}
+                              disabled={!s.sessionCode}
+                              title="Manage session"
+                              onClick={() => {
+                                setPanel(null)
+                                setAssignSession(null)
+                                setVerifySession(null)
+                                setActiveSession(s)
+                                window.scrollTo({ top: 0, behavior: 'smooth' })
+                              }}
                             >
-                              Edit
+                              Manage
                             </button>
-                          )}
-                          {s.status !== 'Completed' && (
-                            <button
-                              type="button"
-                              className="btn small outline"
-                              onClick={() => completeClient(s)}
-                            >
-                              Complete Client
-                            </button>
-                          )}
+                          </div>
                         </td>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <ul className="session-cards">
+                {filteredSaved.map((s, i) => {
+                  const timeBtns = sessionTimeControls(s)
+                  return (
+                  <li
+                    key={s.sessionCode || `card-${i}`}
+                    className={`session-card ${
+                      activeSession?.sessionCode &&
+                      activeSession.sessionCode === s.sessionCode
+                        ? 'row-active'
+                        : ''
+                    }`}
+                  >
+                    <div className="session-card-top">
+                      <span className="session-card-index">#{i + 1}</span>
+                      <span
+                        className={`badge ${
+                          s.status === 'settled' ||
+                          s.status === 'completed' ||
+                          s.status === 'ended'
+                            ? 'done'
+                            : 'pending'
+                        }`}
+                      >
+                        {s.status}
+                      </span>
+                    </div>
+                    <strong className="session-card-title">
+                      {s.clientName || s.clientPhone || 'Unnamed client'}
+                    </strong>
+                    {s.clientName && s.clientPhone && (
+                      <p className="session-card-meta">{s.clientPhone}</p>
+                    )}
+                    <p className="session-card-meta">{formatDateTime(s.dateTime)}</p>
+                    {sessionHistoryTrueLabels(s.sessionHistory).length > 0 && (
+                      <p className="session-history-flags">
+                        {sessionHistoryTrueLabels(s.sessionHistory).map((label) => (
+                          <span key={label} className="history-flag">
+                            {label}
+                          </span>
+                        ))}
+                      </p>
+                    )}
+                    {Array.isArray(s.comments) && s.comments.length > 0 && (
+                      <p className="session-card-meta">
+                        <span className="comments-flag">
+                          {s.comments.length}{' '}
+                          {s.comments.length === 1 ? 'comment' : 'comments'}
+                          {s.comments.some((c) => !c.resolved)
+                            ? ` · ${s.comments.filter((c) => !c.resolved).length} open`
+                            : ' · all resolved'}
+                        </span>
+                      </p>
+                    )}
+                    <p className="session-card-meta">
+                      {[s.sessionType, s.massageType].filter(Boolean).join(' · ') || '—'}
+                    </p>
+                    <p className="session-card-meta">{formatSessionCycle(s)}</p>
+                    {s.hands ? (
+                      <p className="session-card-meta">{s.hands} hands</p>
+                    ) : null}
+                    <p className="session-card-meta">Start {s.startTime || '—'}</p>
+                    <p className="session-card-meta">End {s.endTime || '—'}</p>
+                    <p className="session-card-meta session-duration">
+                      Duration {formatDuration(s.duration)}
+                    </p>
+                    <p className="session-card-meta">
+                      Therapists:{' '}
+                      {s.therapistLabel ||
+                        formatSessionTherapistsLabel(s.sessionTherapists) ||
+                        '—'}
+                    </p>
+                    {s.sessionCreatorName && (
+                      <p className="session-card-meta">Created by {s.sessionCreatorName}</p>
+                    )}
+                    <p className="session-card-meta">
+                      <strong>{formatMoney(s.amount)}</strong>
+                    </p>
+                    {s.lunez ? (
+                      <p className="session-card-meta">
+                        Lunez {formatMoney(s.lunezAmount || 0)}
+                      </p>
+                    ) : null}
+                    <div className="session-card-payments">
+                      <span className="session-card-meta">Payments</span>
+                      <PaymentMethodsDisplay
+                        paymentMethods={s.paymentMethods}
+                        onOpenReceipt={setReceiptLightbox}
+                      />
+                    </div>
+                    <div className="session-row-actions session-card-action">
+                      {timeBtns.showStart && (
+                        <button
+                          type="button"
+                          className="btn small primary"
+                          disabled={!s.sessionCode}
+                          onClick={() => startSavedSession(s)}
+                        >
+                          Start
+                        </button>
+                      )}
+                      {timeBtns.showEnd && (
+                        <button
+                          type="button"
+                          className="btn small primary"
+                          disabled={!s.sessionCode}
+                          onClick={() => endSavedSession(s)}
+                        >
+                          End
+                        </button>
+                      )}
+                      {!s.paymentVerified && (
+                        <button
+                          type="button"
+                          className="btn small primary"
+                          disabled={!s.sessionCode}
+                          onClick={() => openVerifyPayment(s)}
+                        >
+                          Verify payment
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn small primary"
+                        disabled={!s.sessionCode}
+                        onClick={() => {
+                          setPanel(null)
+                          setActiveSession(null)
+                          setAssignSession(s)
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }}
+                      >
+                        Assign
+                      </button>
+                      <button
+                        type="button"
+                        className="btn small ghost"
+                        disabled={!s.sessionCode}
+                        title="Manage session"
+                        onClick={() => {
+                          setPanel(null)
+                          setAssignSession(null)
+                          setVerifySession(null)
+                          setActiveSession(s)
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }}
+                      >
+                        Manage
+                      </button>
+                    </div>
+            </li>
+                  )
+                })}
+          </ul>
+            </>
           )}
-          <p className="edit-note">
-            Edit unavailable after 36 hrs. Only the creating staff code can edit a session — except
-            sessions added from unused bookings.
-          </p>
-        </section>
+      </section>
       </main>
+
+      {verifySession && (
+        <div className="modal-backdrop" role="presentation" onClick={closeVerifyPayment}>
+          <div
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="verify-payment-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="panel-head">
+              <h2 id="verify-payment-title">Verify payment</h2>
+              <button type="button" className="text-btn" onClick={closeVerifyPayment}>
+                Close
+              </button>
+            </div>
+            <p className="muted note-intro">
+              {[verifySession.clientName || 'Client', verifySession.clientPhone, formatSessionCycle(verifySession)]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+            <form className="session-form" onSubmit={submitVerifyPayment}>
+              <label className="staff-code-field full">
+                <span>
+                  Therapist or admin code <em style={{ color: '#dc2626' }}>*</em>
+                </span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={verifyCode}
+                  onChange={(e) => setVerifyCode(e.target.value)}
+                  placeholder="code"
+                  required
+                  autoFocus
+                />
+              </label>
+              <div className="form-actions full">
+                <button type="button" className="btn ghost" onClick={closeVerifyPayment}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn primary" disabled={verifyBusy || !verifyCode.trim()}>
+                  {verifyBusy ? 'Verifying…' : 'Verify payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {receiptLightbox && (
+        <div
+          className="modal-backdrop receipt-lightbox"
+          role="presentation"
+          onClick={() => setReceiptLightbox('')}
+        >
+          <button
+            type="button"
+            className="receipt-lightbox-close text-btn"
+            onClick={() => setReceiptLightbox('')}
+          >
+            Close
+          </button>
+          <img
+            src={receiptLightbox}
+            alt="Payment receipt"
+            className="receipt-lightbox-img"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {toast && <div className="toast">{toast}</div>}
     </div>
