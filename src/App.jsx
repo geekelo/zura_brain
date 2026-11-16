@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import ClientPhoneQr from './ClientPhoneQr'
+import PhoneQrScanner from './PhoneQrScanner'
 import {
   clients,
   bookedByClient,
@@ -220,6 +221,7 @@ function initialsFrom(name) {
 export default function App() {
   const [clientList, setClientList] = useState(clients)
   const [query, setQuery] = useState('')
+  const [scanQrOpen, setScanQrOpen] = useState(false)
   const [searched, setSearched] = useState(false)
   const [results, setResults] = useState([])
   const [client, setClient] = useState(null)
@@ -362,15 +364,16 @@ export default function App() {
     return staff
   }
 
-  async function runSearch(e) {
+  async function runSearch(e, overrideQuery, { selectSingle = false } = {}) {
     e?.preventDefault()
-    const q = query.trim()
+    const q = String(overrideQuery ?? query).trim()
     if (q.length < 3) {
       showToast('Type at least 3 characters to search')
       return
     }
     if (searching) return
 
+    setQuery(q)
     setSearched(true)
     setClient(null)
     setListMode('day')
@@ -394,12 +397,23 @@ export default function App() {
         result.clients.forEach((c) => byPhone.set(clientKey(c), c))
         return Array.from(byPhone.values())
       })
+      if (selectSingle && result.clients.length === 1) {
+        selectClient(result.clients[0])
+      }
     } catch (err) {
       setResults([])
       showToast(err?.message || 'Network error — could not search')
     } finally {
       setSearching(false)
     }
+  }
+
+  function handleQrPhoneScanned(phone) {
+    setScanQrOpen(false)
+    const q = String(phone || '').trim()
+    setQuery(q)
+    showToast(`Scanned ${q}`)
+    runSearch(null, q, { selectSingle: true })
   }
 
   function openCreateClient() {
@@ -964,9 +978,17 @@ export default function App() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search client by name or phone number"
-              aria-label="Search client"
+              placeholder="Search by name, phone, or scan QR"
+              aria-label="Search client by name or phone"
             />
+            <button
+              type="button"
+              className="btn outline"
+              onClick={() => setScanQrOpen(true)}
+              title="Scan client QR code"
+            >
+              Scan QR
+            </button>
             <button type="submit" className="btn primary" disabled={!canSearch || searching}>
               {searching ? 'Searching…' : 'Search'}
             </button>
@@ -976,9 +998,16 @@ export default function App() {
           </div>
           <div className="info-banner">
             <span className="info-i">i</span>
-            Search an existing client, or create a new one if they are not in the system.
+            Search by name or phone, or scan a Zura Spa client QR — the phone fills the search field.
           </div>
         </form>
+
+        <PhoneQrScanner
+          open={scanQrOpen}
+          onClose={() => setScanQrOpen(false)}
+          onScan={handleQrPhoneScanned}
+          showToast={showToast}
+        />
 
         {searched && !client && results.length === 0 && panel !== 'create' && (
           <div className="empty-card">
@@ -1190,97 +1219,102 @@ export default function App() {
 
         {client && (
           <section className="card client-card">
-            <div className="client-top">
-              <div className="client-identity">
-                <span className="avatar xl">{client.initials}</span>
-                <div>
-                  <div className="name-row">
-                    <h1>{client.name || client.phone || 'Unnamed client'}</h1>
-                    <span className="badge soft">
-                      {client.adult === false ? 'Minor' : client.badge || 'Adult'}
-                    </span>
-                    {client.sex && <span className="badge soft">{client.sex}</span>}
-                  </div>
-                  <p className="phone">{client.phone}</p>
-                  {client.other_phones && (
-                    <p className="phone other-phones">Other: {client.other_phones}</p>
-                  )}
-                  {client.preferences ? (
-                    <p className="client-preferences">{client.preferences}</p>
-                  ) : (
-                    <p className="client-preferences muted">No preferences set</p>
-                  )}
-                  {(client.created_by || client.createdByName || client.created_at) && (
-                    <div className="client-meta">
-                      {(client.createdByName || client.created_by) && (
-                        <p className="created-by">
-                          Created by {client.createdByName || client.created_by}
-                        </p>
-                      )}
-                      {client.created_at && (
-                        <p className="created-date">
-                          Date:{' '}
-                          {new Date(client.created_at).toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </p>
-                      )}
+            <div className="client-panel">
+              <div className="client-panel-main">
+                <div className="client-identity">
+                  <span className="avatar xl">{client.initials}</span>
+                  <div className="client-identity-body">
+                    <div className="name-row">
+                      <h1>{client.name || client.phone || 'Unnamed client'}</h1>
+                      <span className="badge soft">
+                        {client.adult === false ? 'Minor' : client.badge || 'Adult'}
+                      </span>
+                      {client.sex && <span className="badge soft">{client.sex}</span>}
                     </div>
-                  )}
+                    <p className="phone">{client.phone}</p>
+                    {client.other_phones && (
+                      <p className="phone other-phones">Other: {client.other_phones}</p>
+                    )}
+                    {(client.created_by || client.createdByName || client.created_at) && (
+                      <p className="client-meta-line">
+                        {[
+                          (client.createdByName || client.created_by) &&
+                            `Created by ${client.createdByName || client.created_by}`,
+                          client.created_at &&
+                            new Date(client.created_at).toLocaleDateString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            }),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="client-stats">
-                <div className="stat">
-                  <span className="stat-label">Tracking</span>
-                  <strong>Cycle {client.cycle ?? client.cycleCurrent ?? 0}</strong>
-                  <em>
-                    Cycle length {(client.cycle_length ?? client.cycleTotal ?? 1)}/4
-                  </em>
-                </div>
-                <div className="stat">
-                  <span className="stat-label">Session History</span>
-                  <strong>{client.totalSessions ?? 0} Total Sessions</strong>
-                  <em>
-                    {client.completedSessions ?? 0} completed ·{' '}
-                    {client.ongoingSessions ?? 0} ongoing ·{' '}
-                    {client.pendingSessions ?? 0} pending ·{' '}
-                    {client.disputedSessions ?? 0} disputed
-                  </em>
-                </div>
-              </div>
-
-              <ClientPhoneQr
-                phone={client.phone}
-                clientName={client.name}
-                whatsappPhoneDigits={whatsappPhoneDigits}
-                showToast={showToast}
-              />
-
-              <div className="client-actions">
-                <button type="button" className="btn primary" onClick={openAddSession}>
-                  + Add Session
-                </button>
-                <button type="button" className="btn outline" onClick={openClientSessions}>
-                  View sessions
-                </button>
-                {clientBookings.length > 0 && (
-                  <button type="button" className="btn outline" onClick={openBooked}>
-                    View Booked Sessions
-                  </button>
+                {client.preferences ? (
+                  <p className="client-preferences">{client.preferences}</p>
+                ) : (
+                  <p className="client-preferences muted">No preferences set</p>
                 )}
-                <button type="button" className="btn outline" onClick={openWhatsapp}>
-                  WhatsApp
-                </button>
-                <button type="button" className="btn outline" onClick={openPreferences}>
-                  Preferences
-                </button>
-                <button type="button" className="btn outline" onClick={openNote}>
-                  Request client edit
-                </button>
+
+                <div className="client-metrics">
+                  <div className="metric">
+                    <span className="metric-label">Cycle</span>
+                    <strong>
+                      {client.cycle ?? client.cycleCurrent ?? 0}
+                      <em>/{(client.cycle_length ?? client.cycleTotal ?? 1)}</em>
+                    </strong>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Sessions</span>
+                    <strong>{client.totalSessions ?? 0}</strong>
+                  </div>
+                  <div className="metric metric-wide">
+                    <span className="metric-label">By status</span>
+                    <p>
+                      {client.completedSessions ?? 0} completed ·{' '}
+                      {client.ongoingSessions ?? 0} ongoing ·{' '}
+                      {client.pendingSessions ?? 0} pending ·{' '}
+                      {client.disputedSessions ?? 0} disputed
+                    </p>
+                  </div>
+                </div>
+
+                <div className="client-actions">
+                  <button type="button" className="btn primary" onClick={openAddSession}>
+                    + Add Session
+                  </button>
+                  <button type="button" className="btn outline" onClick={openClientSessions}>
+                    View sessions
+                  </button>
+                  {clientBookings.length > 0 && (
+                    <button type="button" className="btn outline" onClick={openBooked}>
+                      Booked
+                    </button>
+                  )}
+                  <button type="button" className="btn outline" onClick={openWhatsapp}>
+                    Message
+                  </button>
+                  <button type="button" className="btn outline" onClick={openPreferences}>
+                    Preferences
+                  </button>
+                  <button type="button" className="btn ghost client-action-quiet" onClick={openNote}>
+                    Request edit
+                  </button>
+                </div>
               </div>
+
+              <aside className="client-panel-qr" aria-label="Client QR code">
+                <ClientPhoneQr
+                  phone={client.phone}
+                  clientName={client.name}
+                  whatsappPhoneDigits={whatsappPhoneDigits}
+                  showToast={showToast}
+                />
+              </aside>
             </div>
           </section>
         )}

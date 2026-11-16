@@ -216,7 +216,10 @@ export default function ClientPhoneQr({
 
   return (
     <div className="client-qr">
-      <span className="stat-label">Client QR</span>
+      <header className="client-qr-head">
+        <span className="client-qr-kicker">Zura Spa</span>
+        <strong>Client QR</strong>
+      </header>
       {previewUrl ? (
         <button
           type="button"
@@ -230,19 +233,20 @@ export default function ClientPhoneQr({
         <p className="muted client-qr-loading">Generating…</p>
       )}
       <div className="client-qr-actions">
-        <button type="button" className="btn small outline" disabled={!activeUrl} onClick={() => setEnlarged(true)}>
+        <button type="button" className="text-btn" disabled={!activeUrl} onClick={() => setEnlarged(true)}>
           Enlarge
         </button>
-        <button type="button" className="btn small outline" disabled={!activeUrl} onClick={handleDownload}>
+        <span className="client-qr-dot" aria-hidden="true">
+          ·
+        </span>
+        <button type="button" className="text-btn" disabled={!activeUrl} onClick={handleDownload}>
           Download
         </button>
-        <button
-          type="button"
-          className="btn small outline"
-          disabled={!activeUrl || busy}
-          onClick={handleWhatsapp}
-        >
-          WhatsApp
+        <span className="client-qr-dot" aria-hidden="true">
+          ·
+        </span>
+        <button type="button" className="text-btn" disabled={!activeUrl || busy} onClick={handleWhatsapp}>
+          {busy ? 'Sharing…' : 'Send QR'}
         </button>
       </div>
 
@@ -268,7 +272,7 @@ export default function ClientPhoneQr({
                 Download
               </button>
               <button type="button" className="btn primary" disabled={busy} onClick={handleWhatsapp}>
-                {busy ? 'Sharing…' : 'Send via WhatsApp'}
+                {busy ? 'Sharing…' : 'Send QR'}
               </button>
             </div>
           </div>

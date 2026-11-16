@@ -8,7 +8,7 @@ All POS routes are under `/pos`. Default API base: `https://zura-brain-api.fly.d
 
 | Action | Method |
 | --- | --- |
-| Search clients | `GET /pos/clients?search=` (min 3 chars) — no `id`; session counts by status |
+| Search clients | `GET /pos/clients?search=` (min 3 chars; name/phone) — Scan QR fills phone into search |
 | Create client | `POST /pos/clients` `{ code, client }` (no preferences) |
 | Client preferences | `PATCH`/`PUT` `/pos/clients/preferences` `{ phone, client_preferences }` (no admin code) |
 | List sessions | `GET /pos/sessions` — `?phone=` returns that client's sessions by cycle (`404` if unknown) |

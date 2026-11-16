@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   sessionTypes,
   massageTypes,
@@ -103,22 +103,173 @@ function emptyPaymentForm(session) {
   }
 }
 
-function ReceiptImageField({ previewUrl, fileName, onPick, onClear, disabled }) {
+function ReceiptCameraModal({ onCapture, onClose, showToast }) {
+  const videoRef = useRef(null)
+  const streamRef = useRef(null)
+  const [ready, setReady] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1600 },
+            height: { ideal: 1200 },
+          },
+        })
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop())
+          return
+        }
+        streamRef.current = stream
+        const video = videoRef.current
+        if (video) {
+          video.srcObject = stream
+          await video.play()
+          setReady(true)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            /permission|notallowed|denied/i.test(String(err?.name || err?.message || ''))
+              ? 'Camera permission denied'
+              : 'Could not open camera',
+          )
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
+  }, [])
+
+  function snap() {
+    const video = videoRef.current
+    if (!video || !ready) return
+    const w = video.videoWidth || 1280
+    const h = video.videoHeight || 720
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0, w, h)
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          showToast?.('Could not capture photo')
+          return
+        }
+        const file = new File([blob], `receipt-${Date.now()}.jpg`, { type: 'image/jpeg' })
+        onCapture(file)
+      },
+      'image/jpeg',
+      0.92,
+    )
+  }
+
   return (
-    <label className="full receipt-field">
-      <span>Receipt image</span>
+    <div
+      className="receipt-camera-lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Take receipt photo"
+      onClick={onClose}
+    >
+      <div className="receipt-camera-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="panel-head">
+          <h2>Take photo</h2>
+          <button type="button" className="text-btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        {error ? (
+          <p className="scan-qr-error">{error}. Use Upload image instead, or try the device camera button.</p>
+        ) : (
+          <div className="receipt-camera-view">
+            <video ref={videoRef} playsInline muted autoPlay className="receipt-camera-video" />
+            {!ready ? <p className="muted receipt-camera-waiting">Starting camera…</p> : null}
+          </div>
+        )}
+        <div className="receipt-camera-actions">
+          <button type="button" className="btn ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn primary" disabled={!ready || !!error} onClick={snap}>
+            Capture
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ReceiptImageField({ previewUrl, fileName, onPick, onClear, disabled, showToast }) {
+  const uploadRef = useRef(null)
+  const cameraFileRef = useRef(null)
+  const [cameraOpen, setCameraOpen] = useState(false)
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0] || null
+    e.target.value = ''
+    if (file) onPick(file)
+  }
+
+  return (
+    <div className="full receipt-field">
+      <span className="receipt-field-label">Receipt image</span>
       <div className="receipt-controls">
         <input
+          ref={uploadRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          disabled={disabled}
+          onChange={handleFileChange}
+        />
+        {/* Mobile-friendly OS camera / photo picker */}
+        <input
+          ref={cameraFileRef}
           type="file"
           accept="image/*"
           capture="environment"
+          className="sr-only"
           disabled={disabled}
-          onChange={(e) => {
-            const file = e.target.files?.[0] || null
-            e.target.value = ''
-            onPick(file)
-          }}
+          onChange={handleFileChange}
         />
+        <div className="receipt-pick-row">
+          <button
+            type="button"
+            className="btn outline"
+            disabled={disabled}
+            onClick={() => uploadRef.current?.click()}
+          >
+            Upload image
+          </button>
+          <button
+            type="button"
+            className="btn outline"
+            disabled={disabled}
+            onClick={() => setCameraOpen(true)}
+          >
+            Take photo
+          </button>
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={disabled}
+            onClick={() => cameraFileRef.current?.click()}
+            title="Uses the device camera or photo library"
+          >
+            Device camera
+          </button>
+        </div>
         {previewUrl ? (
           <div className="receipt-preview-wrap">
             <img src={previewUrl} alt="Receipt preview" className="receipt-preview" />
@@ -130,10 +281,22 @@ function ReceiptImageField({ previewUrl, fileName, onPick, onClear, disabled }) 
             </div>
           </div>
         ) : (
-          <p className="field-hint">Upload a file or snap a photo of the payment receipt</p>
+          <p className="field-hint">
+            Upload from files, or take a photo with the camera (desktop and mobile).
+          </p>
         )}
       </div>
-    </label>
+      {cameraOpen ? (
+        <ReceiptCameraModal
+          showToast={showToast}
+          onClose={() => setCameraOpen(false)}
+          onCapture={(file) => {
+            onPick(file)
+            setCameraOpen(false)
+          }}
+        />
+      ) : null}
+    </div>
   )
 }
 
@@ -1192,6 +1355,7 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
                         previewUrl={editReceiptPreview}
                         fileName={editReceiptFile?.name}
                         disabled={busy}
+                        showToast={showToast}
                         onPick={(file) => pickReceipt(file, { forEdit: true })}
                         onClear={() => clearReceipt({ forEdit: true })}
                       />
@@ -1304,6 +1468,7 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
               previewUrl={receiptPreview}
               fileName={receiptFile?.name}
               disabled={busy}
+              showToast={showToast}
               onPick={(file) => pickReceipt(file)}
               onClear={() => clearReceipt()}
             />
