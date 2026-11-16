@@ -593,23 +593,21 @@
 }
 
 .metric strong {
+  display: block;
   font-size: 1.2rem;
   letter-spacing: -0.03em;
   line-height: 1.15;
 }
 
-.metric strong em {
-  font-style: normal;
-  font-weight: 500;
-  font-size: 0.85em;
-  color: var(--muted);
+.metric p {
+  margin: 2px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: #4b5563;
 }
 
 .metric-wide p {
   margin: 0;
-  font-size: 0.84rem;
-  line-height: 1.35;
-  color: #4b5563;
 }
 
 .created-by,

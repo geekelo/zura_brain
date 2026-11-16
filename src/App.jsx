@@ -1263,10 +1263,10 @@ export default function App() {
                 <div className="client-metrics">
                   <div className="metric">
                     <span className="metric-label">Cycle</span>
-                    <strong>
-                      {client.cycle ?? client.cycleCurrent ?? 0}
-                      <em>/{(client.cycle_length ?? client.cycleTotal ?? 1)}</em>
-                    </strong>
+                    <strong>{client.cycle ?? client.cycleCurrent ?? 0}</strong>
+                    <p>
+                      Cycle length {(client.cycle ?? client.cycleCurrent ?? 0)}/4
+                    </p>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Sessions</span>
