@@ -370,8 +370,8 @@ export default function SessionTherapists({ session, showToast, onClose, onUpdat
 
         <form className="session-form assign-add-form" onSubmit={submitAssign}>
           <label className="staff-code-field full">
-            <span>
-              Creator or admin code <em style={{ color: '#dc2626' }}>*</em>
+            <span className="label-text">
+              Creator or admin code <em>*</em>
             </span>
             <input
               type="password"

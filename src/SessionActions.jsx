@@ -930,7 +930,9 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
       {tab === 'update' && (
         <form className="session-form" onSubmit={submitUpdate}>
           <label className="staff-code-field">
-            Creator code <em style={{ color: '#dc2626' }}>*</em>
+            <span className="label-text">
+              Creator code <em>*</em>
+            </span>
             <input
               type="password"
               autoComplete="off"
@@ -1116,12 +1118,12 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
             </label>
           )}
           <label className="staff-code-field">
-            <span>
+            <span className="label-text">
               {statusForm.status === 'completed' || statusForm.status === 'disputed'
                 ? 'Admin code'
                 : 'Or admin code'}
               {(statusForm.status === 'completed' || statusForm.status === 'disputed') && (
-                <em style={{ color: '#dc2626' }}> *</em>
+                <em>*</em>
               )}
             </span>
             <input
@@ -1277,8 +1279,8 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
       {tab === 'payments' && (
         <div className="payments-panel">
           <label className="staff-code-field full" style={{ display: 'block', marginBottom: 12 }}>
-            <span>
-              Creator or admin code <em style={{ color: '#dc2626' }}>*</em>
+            <span className="label-text">
+              Creator or admin code <em>*</em>
             </span>
             <input
               type="password"
@@ -1491,8 +1493,8 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
             Create an admin note linked to this session ({ss || '—'}).
           </p>
           <label className="staff-code-field">
-            <span>
-              Your therapist code <em style={{ color: '#dc2626' }}>*</em>
+            <span className="label-text">
+              Your therapist code <em>*</em>
             </span>
             <input
               type="password"
@@ -1532,7 +1534,9 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
             Deletes session {ss || '—'}. Requires admin code. Remaining client sessions are renumbered.
           </p>
           <label className="staff-code-field full">
-            Admin code <em style={{ color: '#dc2626' }}>*</em>
+            <span className="label-text">
+              Admin code <em>*</em>
+            </span>
             <input
               type="password"
               autoComplete="off"

@@ -1046,7 +1046,9 @@ export default function App() {
                   />
                 </label>
                 <label className="staff-code-field">
-                  Staff unique code <em>*</em>
+                  <span className="label-text">
+                    Staff unique code <em>*</em>
+                  </span>
                   <input
                     type="password"
                     autoComplete="off"
@@ -1060,7 +1062,9 @@ export default function App() {
 
               <div className="create-row two">
                 <label>
-                  Phone <em>*</em>
+                  <span className="label-text">
+                    Phone <em>*</em>
+                  </span>
                   <span className="phone-code-hint">
                     No number? Use code{' '}
                     <button
@@ -1108,7 +1112,9 @@ export default function App() {
               <div className="create-row three split">
                 <fieldset className="seg">
                   <legend>
-                    Sex <em>*</em>
+                    <span className="label-text">
+                      Sex <em>*</em>
+                    </span>
                   </legend>
                   {['M', 'F', 'Other'].map((s) => (
                     <button
@@ -1123,7 +1129,9 @@ export default function App() {
                 </fieldset>
                 <fieldset className="seg">
                   <legend>
-                    Adult <em>*</em>
+                    <span className="label-text">
+                      Adult <em>*</em>
+                    </span>
                   </legend>
                   <button
                     type="button"
@@ -1141,7 +1149,9 @@ export default function App() {
                   </button>
                 </fieldset>
                 <label>
-                  Cycle <em>*</em>
+                  <span className="label-text">
+                    Cycle <em>*</em>
+                  </span>
                   <input
                     type="number"
                     min="0"
@@ -1164,7 +1174,9 @@ export default function App() {
 
               <div className="create-row two">
                 <label>
-                  Cycle length <em>*</em>
+                  <span className="label-text">
+                    Cycle length <em>*</em>
+                  </span>
                   <select
                     value={clientForm.cycle_length}
                     onChange={(e) => setClientForm((f) => ({ ...f, cycle_length: e.target.value }))}
@@ -1493,7 +1505,9 @@ export default function App() {
                 </select>
               </label>
               <label className="staff-code-field full">
-                Staff unique code <em style={{ color: '#dc2626' }}>*</em>
+                <span className="label-text">
+                  Staff unique code <em>*</em>
+                </span>
                 <input
                   type="password"
                   autoComplete="off"
@@ -1618,8 +1632,8 @@ export default function App() {
             </p>
             <form className="session-form" onSubmit={sendNote}>
               <label className="staff-code-field full">
-                <span>
-                  Your therapist code <em style={{ color: '#dc2626' }}>*</em>
+                <span className="label-text">
+                  Your therapist code <em>*</em>
                 </span>
                 <input
                   type="password"
@@ -2121,8 +2135,8 @@ export default function App() {
             </p>
             <form className="session-form" onSubmit={submitVerifyPayment}>
               <label className="staff-code-field full">
-                <span>
-                  Therapist or admin code <em style={{ color: '#dc2626' }}>*</em>
+                <span className="label-text">
+                  Therapist or admin code <em>*</em>
                 </span>
                 <input
                   type="password"
