@@ -34,7 +34,7 @@ All POS routes are under `/pos`. Default API base: `https://zura-brain-api.fly.d
 
 Payment `source`: `pos` | `kuda` | `delight olga` | `cash` | `moniepoint` | `other`.  
 Payment `type`: `massage` | `lunez` | `other`.  
-Payment `status`: `ok` | `refunded` | `nonrefunded`. Amount must be greater than 0.  
+Payment `status`: `pending` (default on create) | `ok` | `refunded` | `nonrefunded`. Amount must be greater than 0.  
 `payment_url[]` entries: `{ img_url, del_url, date_time }` (empty array when none).
 
 Client preferences: **Preferences** on the client card (no admin code).  
