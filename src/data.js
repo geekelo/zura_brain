@@ -96,7 +96,7 @@ export const paymentSources = [
   'moniepoint',
   'other',
 ]
-export const paymentTypes = ['massage', 'lunez', 'other']
+export const paymentTypes = ['massage', 'lunez', 'tip', 'other']
 /** API value → display label */
 export const paymentStatuses = [
   { value: 'pending', label: 'Unconfirmed' },
