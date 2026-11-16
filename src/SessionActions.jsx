@@ -99,7 +99,7 @@ function emptyPaymentForm(session) {
     source: 'pos',
     type: 'massage',
     amount: String(session.amount || ''),
-    status: 'ok',
+    status: 'pending',
   }
 }
 

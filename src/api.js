@@ -728,7 +728,7 @@ export async function createPosPaymentMethod({
   body.append('payment_method[amount]', String(parseDecimal(payment_method.amount)))
   body.append(
     'payment_method[status]',
-    String(payment_method.status || '').trim().toLowerCase(),
+    String(payment_method.status || 'pending').trim().toLowerCase() || 'pending',
   )
   appendPaymentAuth(body, { tc, th, code })
   if (receipt) body.append('receipt', receipt)
