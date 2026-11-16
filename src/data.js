@@ -99,7 +99,8 @@ export const paymentSources = [
 export const paymentTypes = ['massage', 'lunez', 'other']
 /** API value → display label */
 export const paymentStatuses = [
-  { value: 'ok', label: 'Unconfirmed' },
+  { value: 'pending', label: 'Unconfirmed' },
+  { value: 'ok', label: 'Confirmed' },
   { value: 'refunded', label: 'Refunded' },
   { value: 'nonrefunded', label: 'Not-refunded' },
 ]
