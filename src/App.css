@@ -314,9 +314,81 @@
 
 .client-top {
   display: grid;
-  grid-template-columns: 1.2fr 1.4fr auto;
+  grid-template-columns: 1.2fr 1.2fr auto auto;
   gap: 20px;
   align-items: center;
+}
+
+.client-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.client-qr-frame {
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  line-height: 0;
+}
+
+.client-qr-frame img {
+  display: block;
+  width: 132px;
+  height: 132px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.client-qr-loading {
+  margin: 0;
+  font-size: 0.8rem;
+  min-height: 132px;
+  display: grid;
+  place-items: center;
+}
+
+.client-qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.client-qr-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(15, 23, 42, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.client-qr-lightbox-panel {
+  width: min(520px, 100%);
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 18px 20px 20px;
+  box-shadow: var(--shadow);
+}
+
+.client-qr-lightbox-img {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin: 12px auto 16px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.client-qr-lightbox-actions {
+  justify-content: flex-end;
 }
 
 .client-identity {

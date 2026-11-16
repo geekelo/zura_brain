@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import ClientPhoneQr from './ClientPhoneQr'
 import {
   clients,
   bookedByClient,
@@ -1250,6 +1251,13 @@ export default function App() {
                   </em>
                 </div>
               </div>
+
+              <ClientPhoneQr
+                phone={client.phone}
+                clientName={client.name}
+                whatsappPhoneDigits={whatsappPhoneDigits}
+                showToast={showToast}
+              />
 
               <div className="client-actions">
                 <button type="button" className="btn primary" onClick={openAddSession}>
