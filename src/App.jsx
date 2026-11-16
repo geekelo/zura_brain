@@ -629,17 +629,22 @@ export default function App() {
 
     setSavingSession(true)
     try {
+      const sessionPayload = {
+        session_type: form.sessionType,
+        massage_type: form.massageType,
+        amount: form.amount,
+        lunez: !!form.lunez,
+        hands: form.hands,
+      }
+      if (form.lunez) {
+        const amt = Number(form.lunezAmount)
+        sessionPayload.lunez_amount =
+          Number.isFinite(amt) && amt > 0 ? amt : DEFAULT_LUNEZ_AMOUNT_YES
+      }
       const result = await createPosSession({
         st,
         client_phone: client.phone,
-        session: {
-          session_type: form.sessionType,
-          massage_type: form.massageType,
-          amount: form.amount,
-          lunez: !!form.lunez,
-          lunez_amount: form.lunez ? form.lunezAmount : 0,
-          hands: form.hands,
-        },
+        session: sessionPayload,
       })
 
       if (!result.ok) {

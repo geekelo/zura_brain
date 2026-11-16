@@ -39,14 +39,55 @@ import {
 
 const STATUS_OPTIONS = ['pending', 'started', 'ended', 'completed', 'disputed']
 
+/** YYYY-MM-DD for `<input type="date">` from ISO / session_date. */
+function toDateInputValue(value) {
+  if (!value) return ''
+  const s = String(value)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s.slice(0, 10)) && s.length <= 10) return s.slice(0, 10)
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) {
+    const head = s.slice(0, 10)
+    return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
+  }
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/**
+ * Apply a new calendar date while keeping the clock time from created_at.
+ */
+function sessionDateKeepingCreatedTime(dateYmd, createdIso) {
+  const [y, mo, day] = String(dateYmd || '')
+    .split('-')
+    .map(Number)
+  if (!y || !mo || !day) return null
+  const base = createdIso ? new Date(createdIso) : new Date()
+  if (Number.isNaN(base.getTime())) {
+    return `${String(dateYmd).slice(0, 10)}T00:00:00.000Z`
+  }
+  const next = new Date(base.getTime())
+  next.setFullYear(y, mo - 1, day)
+  return next.toISOString()
+}
+
 function emptyUpdate(session) {
+  const createdAt = session.createdAt || session.dateTime || ''
   return {
     st: '',
     amount: amountSelectValue(session.amount, DEFAULT_AMOUNT),
     lunez: !!session.lunez,
-    lunez_amount: lunezAmountSelectValue(session.lunezAmount, DEFAULT_LUNEZ_AMOUNT),
+    lunez_amount: lunezAmountSelectValue(
+      session.lunez && !(Number(session.lunezAmount) > 0)
+        ? DEFAULT_LUNEZ_AMOUNT_YES
+        : session.lunezAmount,
+      session.lunez ? DEFAULT_LUNEZ_AMOUNT_YES : DEFAULT_LUNEZ_AMOUNT,
+    ),
     session_type: toSentenceCase(session.sessionType) || sessionTypes[0],
     massage_type: session.massageType || DEFAULT_MASSAGE_TYPE,
+    session_date: toDateInputValue(session.dateTime || createdAt),
+    created_at: createdAt,
     start_time: toTimeOfDay(session.startTime) || '',
     end_time: toTimeOfDay(session.endTime) || '',
     hands: session.hands || '2',
@@ -361,15 +402,27 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
       return
     }
     run(async () => {
+      const session_date = sessionDateKeepingCreatedTime(
+        updateForm.session_date,
+        updateForm.created_at || session.createdAt || session.dateTime,
+      )
       const result = await updatePosSession({
         sessionCode: ss,
         st: updateForm.st,
         session: {
           amount: updateForm.amount,
           lunez: !!updateForm.lunez,
-          lunez_amount: updateForm.lunez ? updateForm.lunez_amount : 0,
+          ...(updateForm.lunez
+            ? {
+                lunez_amount: (() => {
+                  const amt = Number(updateForm.lunez_amount)
+                  return Number.isFinite(amt) && amt > 0 ? amt : DEFAULT_LUNEZ_AMOUNT_YES
+                })(),
+              }
+            : {}),
           session_type: String(updateForm.session_type).toLowerCase(),
           massage_type: String(updateForm.massage_type || '').trim(),
+          session_date: session_date || undefined,
           start_time: updateForm.start_time || null,
           end_time: updateForm.end_time || null,
           hands: updateForm.hands,
@@ -768,12 +821,24 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
           <label>
             Hands
             <select value={updateForm.hands} onChange={(e) => setU('hands', e.target.value)}>
+              {updateForm.hands && !handsOptions.includes(String(updateForm.hands)) && (
+                <option value={String(updateForm.hands)}>{updateForm.hands}</option>
+              )}
               {handsOptions.map((h) => (
                 <option key={h} value={h}>
                   {h}
                 </option>
               ))}
             </select>
+          </label>
+          <label>
+            Session date
+            <input
+              type="date"
+              value={updateForm.session_date || ''}
+              onChange={(e) => setU('session_date', e.target.value)}
+            />
+            <span className="field-hint">Time stays as when the session was created</span>
           </label>
           <fieldset className="seg">
             <legend>Lunez</legend>

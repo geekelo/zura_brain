@@ -67,12 +67,12 @@ export function toSentenceCase(value) {
   if (!s) return ''
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 }
-export const handsOptions = ['1', '2', '4']
+export const handsOptions = ['2', '4', '6']
 export const DEFAULT_AMOUNT = 35000
 export const amountOptions = [35000, 30000, 25000]
 export const DEFAULT_LUNEZ_AMOUNT = 0
 export const DEFAULT_LUNEZ_AMOUNT_YES = 10000
-export const lunezAmountOptions = [0, 10000, 20000, 30000, 40000, 50000, 60000]
+export const lunezAmountOptions = [10000, 20000, 30000, 40000, 50000, 60000]
 
 /** Map API decimal amounts (e.g. "35000.0") onto a dropdown option value. */
 export function amountSelectValue(value, fallback = DEFAULT_AMOUNT) {
@@ -82,9 +82,9 @@ export function amountSelectValue(value, fallback = DEFAULT_AMOUNT) {
   return String(match ?? n)
 }
 
-export function lunezAmountSelectValue(value, fallback = DEFAULT_LUNEZ_AMOUNT) {
+export function lunezAmountSelectValue(value, fallback = DEFAULT_LUNEZ_AMOUNT_YES) {
   const n = Number(value)
-  if (!Number.isFinite(n)) return String(fallback)
+  if (!Number.isFinite(n) || n <= 0) return String(fallback)
   const match = lunezAmountOptions.find((a) => a === n)
   return String(match ?? n)
 }

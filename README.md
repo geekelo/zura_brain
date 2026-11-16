@@ -13,7 +13,7 @@ All POS routes are under `/pos`. Default API base: `https://zura-brain-api.fly.d
 | Client preferences | `PATCH`/`PUT` `/pos/clients/preferences` `{ phone, client_preferences }` (no admin code) |
 | List sessions | `GET /pos/sessions` — `?phone=` returns that client's sessions by cycle (`404` if unknown) |
 | Create session | `POST /pos/sessions` `{ st, client_phone, session }` (`session_type`, `massage_type`, …) |
-| Update session | `PATCH /pos/sessions/:ss` `{ st, session }` |
+| Update session | `PATCH /pos/sessions/:ss` `{ st, session }` (incl. `session_date`; time kept from `created_at`) |
 | Status | `PATCH /pos/sessions/:ss/status` `{ th\|tc, status }` — `completed`/`disputed` need admin `tc` only |
 | Times | `PATCH`/`PUT` `/pos/sessions/:ss/times` `{ start_time, end_time? }` as `HH:MM:SS` |
 | Verify payment | `PATCH`/`PUT` `/pos/sessions/:ss/verify_payment` `{ tc\|th }` |

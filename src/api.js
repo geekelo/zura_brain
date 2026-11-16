@@ -378,6 +378,7 @@ export function normalizeSession(apiSession, extras = {}) {
     clientName: nestedClient?.name || extras.clientName || apiSession.client_name || '',
     clientPhone: nestedClient?.phone || extras.clientPhone || apiSession.client_phone || '',
     dateTime: apiSession.session_date || apiSession.created_at || new Date().toISOString(),
+    createdAt: apiSession.created_at || '',
     sessionType: (() => {
       const raw = String(apiSession.session_type || '').trim()
       if (!raw) return ''
@@ -495,22 +496,29 @@ export async function listPosSessions({ phone } = {}) {
 /**
  * POST /pos/sessions
  * Do not send `status` — server defaults to pending.
+ * When `lunez` is false, omit `lunez_amount` (DB default is 0).
+ * When `lunez` is true, send `lunez_amount` (default 10000).
  */
 export async function createPosSession({ st, client_phone, session }) {
+  const lunez = !!session.lunez
+  const sessionBody = {
+    session_type: String(session.session_type || '').trim().toLowerCase(),
+    massage_type: String(session.massage_type || '').trim(),
+    amount: parseDecimal(session.amount),
+    lunez,
+    hands: String(session.hands ?? ''),
+  }
+  if (lunez) {
+    const amt = parseDecimal(session.lunez_amount, 10000)
+    sessionBody.lunez_amount = amt > 0 ? amt : 10000
+  }
   const res = await fetch(url('/pos/sessions'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       st: String(st || '').trim(),
       client_phone: String(client_phone || '').trim(),
-      session: {
-        session_type: String(session.session_type || '').trim().toLowerCase(),
-        massage_type: String(session.massage_type || '').trim(),
-        amount: parseDecimal(session.amount),
-        lunez: !!session.lunez,
-        lunez_amount: session.lunez ? parseDecimal(session.lunez_amount) : 0,
-        hands: String(session.hands ?? ''),
-      },
+      session: sessionBody,
     }),
   })
   const data = await readJson(res)
