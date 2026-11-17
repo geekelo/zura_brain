@@ -12,8 +12,8 @@ All POS routes are under `/pos`. Default API base: `https://zura-brain-api.fly.d
 | Create client | `POST /pos/clients` `{ code, client }` (no preferences) |
 | Client preferences | `PATCH`/`PUT` `/pos/clients/preferences` `{ phone, client_preferences }` (no admin code) |
 | List sessions | `GET /pos/sessions` — `?phone=` returns that client's sessions by cycle (`404` if unknown) |
-| Create session | `POST /pos/sessions` `{ st, client_phone, session }` (`session_type`, `massage_type`, …) |
-| Update session | `PATCH /pos/sessions/:ss` `{ st, session }` (incl. `session_date`; time kept from `created_at`) |
+| Create session | `POST /pos/sessions` `{ st, client_phone, session, client_support? }` |
+| Update session | `PATCH /pos/sessions/:ss` `{ st, session, client_support? }` — support create/update via `type` |
 | Status | `PATCH /pos/sessions/:ss/status` `{ th\|tc, status }` — `completed`/`disputed` need admin `tc` only |
 | Times | `PATCH`/`PUT` `/pos/sessions/:ss/times` `{ start_time, end_time? }` as `HH:MM:SS` |
 | Verify payment | `PATCH`/`PUT` `/pos/sessions/:ss/verify_payment` `{ tc\|th }` |
@@ -44,7 +44,9 @@ Client card includes a **Zura Spa–framed phone QR** (enlarge / download / send
 Other client field edits need admin `code`/`tc` — use **Request client edit** (admin note).  
 Session notes: **Manage → Admin note**.
 
-Use **Manage** on a saved session for individual updates, including **Payments**.
+Use **Manage → Update** for session edits; optional **Client support** (`description`, `amount`, `type`: `payin`\|`payout`, optional `notes`).  
+Omit support on update to leave the existing record unchanged.  
+Sanction and client-support account ledgers live in the **zura_brain_admin** app.
 
 ## Requirements
 

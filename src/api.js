@@ -350,6 +350,19 @@ export function normalizeComment(c) {
   }
 }
 
+export function normalizeClientSupport(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const description = String(raw.description || '').trim()
+  if (!description && raw.amount == null && !raw.type) return null
+  const type = String(raw.type || '').trim().toLowerCase()
+  return {
+    description,
+    notes: String(raw.notes || '').trim(),
+    amount: parseDecimal(raw.amount),
+    type: type === 'payout' || type === 'payin' ? type : type || '',
+  }
+}
+
 export function normalizeSession(apiSession, extras = {}) {
   const comments = Array.isArray(apiSession.comments)
     ? apiSession.comments.map(normalizeComment)
@@ -371,6 +384,7 @@ export function normalizeSession(apiSession, extras = {}) {
   const { sessionTherapists, therapists } = normalizeTherapists(apiSession, extras)
   const sessionCreatorName = therapistLabel(nestedCreator) || ''
   const sessionHistory = normalizeSessionHistory(apiSession.session_history)
+  const clientSupport = normalizeClientSupport(apiSession.client_support)
 
   return {
     id: apiSession.id,
@@ -394,6 +408,7 @@ export function normalizeSession(apiSession, extras = {}) {
     lunez: !!apiSession.lunez,
     lunezAmount: parseDecimal(apiSession.lunez_amount),
     hands: String(apiSession.hands ?? ''),
+    clientSupport,
     sessionTherapists,
     therapists,
     therapistLabel: therapists.join(', '),
@@ -493,13 +508,28 @@ export async function listPosSessions({ phone } = {}) {
   }
 }
 
+function buildClientSupportBody(client_support) {
+  if (!client_support) return null
+  const description = String(client_support.description || '').trim()
+  if (!description) return null
+  const amount = parseDecimal(client_support.amount, NaN)
+  if (!Number.isFinite(amount)) return null
+  const type = String(client_support.type || '').trim().toLowerCase()
+  if (type !== 'payin' && type !== 'payout') return null
+  const body = { description, amount, type }
+  const notes = String(client_support.notes || '').trim()
+  if (notes) body.notes = notes
+  return body
+}
+
 /**
  * POST /pos/sessions
  * Do not send `status` — server defaults to pending.
  * When `lunez` is false, omit `lunez_amount` (DB default is 0).
  * When `lunez` is true, send `lunez_amount` (default 10000).
+ * Optional top-level `client_support` `{ description, amount, type, notes? }` — omit if unused.
  */
-export async function createPosSession({ st, client_phone, session }) {
+export async function createPosSession({ st, client_phone, session, client_support }) {
   const lunez = !!session.lunez
   const sessionBody = {
     session_type: String(session.session_type || '').trim().toLowerCase(),
@@ -512,39 +542,62 @@ export async function createPosSession({ st, client_phone, session }) {
     const amt = parseDecimal(session.lunez_amount, 10000)
     sessionBody.lunez_amount = amt > 0 ? amt : 10000
   }
+  const payload = {
+    st: String(st || '').trim(),
+    client_phone: String(client_phone || '').trim(),
+    session: sessionBody,
+  }
+  const support = buildClientSupportBody(client_support)
+  if (support) payload.client_support = support
+
   const res = await fetch(url('/pos/sessions'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      st: String(st || '').trim(),
-      client_phone: String(client_phone || '').trim(),
-      session: sessionBody,
-    }),
+    body: JSON.stringify(payload),
   })
   const data = await readJson(res)
   if (res.status === 201) return { ok: true, session: data }
-  return apiError(res, data, { 404: 'Client or therapist not found' })
+  return apiError(res, data, {
+    404: 'Client or therapist not found',
+    422: 'client_support requires description, amount, and type',
+  })
 }
 
 /**
  * PATCH /pos/sessions/:ss  (ss = session_code)
+ * Optional top-level `client_support` creates or updates that session’s support.
+ * Omit `client_support` to leave existing support unchanged.
  */
-export async function updatePosSession({ sessionCode, st, session }) {
-  const ss = encodeURIComponent(String(sessionCode || '').trim())
+export async function updatePosSession({ sessionCode, ss, st, session, client_support }) {
+  const key = encodeURIComponent(String(sessionCode || ss || '').trim())
   const { status: _omitStatus, ...sessionFields } = session || {}
-  const res = await fetch(url(`/pos/sessions/${ss}`), {
+  const body = {
+    ss: String(sessionCode || ss || '').trim(),
+    st: String(st || '').trim(),
+    session: sessionFields,
+  }
+  if (client_support !== undefined) {
+    const support = buildClientSupportBody(client_support)
+    if (!support) {
+      return {
+        ok: false,
+        status: 422,
+        error: 'client_support requires description, amount, and type',
+      }
+    }
+    body.client_support = support
+  }
+  const res = await fetch(url(`/pos/sessions/${key}`), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      st: String(st || '').trim(),
-      session: sessionFields,
-    }),
+    body: JSON.stringify(body),
   })
   const data = await readJson(res)
   if (res.status === 200) return { ok: true, session: data }
   return apiError(res, data, {
     403: 'Only the creating therapist can update this session',
     404: 'Session not found',
+    422: 'client_support requires description, amount, and type',
   })
 }
 

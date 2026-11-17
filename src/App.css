@@ -42,9 +42,15 @@
 }
 
 .tagline {
-  margin-left: auto;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .user {
@@ -53,6 +59,12 @@
   gap: 8px;
   font-weight: 500;
   font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .header-actions {
+    margin-left: 0;
+  }
 }
 
 .avatar {
@@ -893,6 +905,7 @@
 }
 
 .session-form label.full,
+.session-form .seg.full,
 .form-actions.full {
   grid-column: 1 / -1;
 }

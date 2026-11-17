@@ -70,6 +70,13 @@ export function toSentenceCase(value) {
 export const handsOptions = ['2', '4', '6']
 export const DEFAULT_AMOUNT = 35000
 export const amountOptions = [35000, 30000, 25000]
+export const clientSupportDescriptions = ['car wash']
+export const DEFAULT_CLIENT_SUPPORT_AMOUNT = 2000
+export const clientSupportTypes = [
+  { value: 'payin', label: 'Pay in' },
+  { value: 'payout', label: 'Pay out' },
+]
+export const DEFAULT_CLIENT_SUPPORT_TYPE = 'payin'
 export const DEFAULT_LUNEZ_AMOUNT = 0
 export const DEFAULT_LUNEZ_AMOUNT_YES = 10000
 export const lunezAmountOptions = [10000, 20000, 30000, 40000, 50000, 60000]
