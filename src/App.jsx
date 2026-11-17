@@ -186,6 +186,7 @@ function emptyForm() {
     sessionType: sessionTypes[0],
     massageType: DEFAULT_MASSAGE_TYPE,
     amount: String(DEFAULT_AMOUNT),
+    offCycle: false,
     lunez: false,
     lunezAmount: String(DEFAULT_LUNEZ_AMOUNT),
     hands: '2',
@@ -657,6 +658,7 @@ export default function App() {
         session_type: form.sessionType,
         massage_type: form.massageType,
         amount: form.amount,
+        off_cycle: !!form.offCycle,
         lunez: !!form.lunez,
         hands: form.hands,
       }
@@ -1487,6 +1489,23 @@ export default function App() {
                 </select>
               </label>
               <fieldset className="seg">
+                <legend>Off cycle</legend>
+                <button
+                  type="button"
+                  className={form.offCycle ? 'active' : ''}
+                  onClick={() => updateForm('offCycle', true)}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  className={!form.offCycle ? 'active' : ''}
+                  onClick={() => updateForm('offCycle', false)}
+                >
+                  No
+                </button>
+              </fieldset>
+              <fieldset className="seg">
                 <legend>Lunez</legend>
                 <button
                   type="button"
@@ -1952,6 +1971,7 @@ export default function App() {
                                 '—'}
                             </strong>
                             <span className="muted">{formatSessionCycle(s)}</span>
+                            {s.offCycle ? <span className="muted">Off cycle</span> : null}
                             {s.hands ? (
                               <span className="muted">{s.hands} hands</span>
                             ) : null}
@@ -2140,6 +2160,7 @@ export default function App() {
                       {[s.sessionType, s.massageType].filter(Boolean).join(' · ') || '—'}
                     </p>
                     <p className="session-card-meta">{formatSessionCycle(s)}</p>
+                    {s.offCycle ? <p className="session-card-meta">Off cycle</p> : null}
                     {s.hands ? (
                       <p className="session-card-meta">{s.hands} hands</p>
                     ) : null}

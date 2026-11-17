@@ -81,6 +81,7 @@ function emptyUpdate(session) {
   return {
     st: '',
     amount: amountSelectValue(session.amount, DEFAULT_AMOUNT),
+    off_cycle: !!session.offCycle,
     lunez: !!session.lunez,
     lunez_amount: lunezAmountSelectValue(
       session.lunez && !(Number(session.lunezAmount) > 0)
@@ -621,6 +622,7 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
             : {}),
           session_type: String(updateForm.session_type).toLowerCase(),
           massage_type: String(updateForm.massage_type || '').trim(),
+          off_cycle: !!updateForm.off_cycle,
           session_date: session_date || undefined,
           start_time: updateForm.start_time || null,
           end_time: updateForm.end_time || null,
@@ -1031,6 +1033,23 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
               ))}
             </select>
           </label>
+          <fieldset className="seg">
+            <legend>Off cycle</legend>
+            <button
+              type="button"
+              className={updateForm.off_cycle ? 'active' : ''}
+              onClick={() => setU('off_cycle', true)}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              className={!updateForm.off_cycle ? 'active' : ''}
+              onClick={() => setU('off_cycle', false)}
+            >
+              No
+            </button>
+          </fieldset>
           <label>
             Hands
             <select value={updateForm.hands} onChange={(e) => setU('hands', e.target.value)}>

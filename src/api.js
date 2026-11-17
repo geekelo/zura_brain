@@ -405,6 +405,7 @@ export function normalizeSession(apiSession, extras = {}) {
     cycle: `Cycle ${cycleNum ?? '—'} · ${cycleNum ?? '—'}/4`,
     amount: parseDecimal(apiSession.amount),
     settled: !!apiSession.settled,
+    offCycle: !!apiSession.off_cycle,
     lunez: !!apiSession.lunez,
     lunezAmount: parseDecimal(apiSession.lunez_amount),
     hands: String(apiSession.hands ?? ''),
@@ -527,6 +528,7 @@ function buildClientSupportBody(client_support) {
  * Do not send `status` — server defaults to pending.
  * When `lunez` is false, omit `lunez_amount` (DB default is 0).
  * When `lunez` is true, send `lunez_amount` (default 10000).
+ * `off_cycle` defaults to false.
  * Optional top-level `client_support` `{ description, amount, type, notes? }` — omit if unused.
  */
 export async function createPosSession({ st, client_phone, session, client_support }) {
@@ -535,6 +537,7 @@ export async function createPosSession({ st, client_phone, session, client_suppo
     session_type: String(session.session_type || '').trim().toLowerCase(),
     massage_type: String(session.massage_type || '').trim(),
     amount: parseDecimal(session.amount),
+    off_cycle: !!session.off_cycle,
     lunez,
     hands: String(session.hands ?? ''),
   }
