@@ -612,13 +612,18 @@ export async function updatePosSession({ sessionCode, ss, st, session, client_su
 
 /**
  * DELETE /pos/sessions/:ss  (session_code + admin code)
+ * Path and body use `ss` (session_code), not numeric `id`.
  */
-export async function deletePosSession({ sessionCode, code }) {
-  const ss = encodeURIComponent(String(sessionCode || '').trim())
+export async function deletePosSession({ sessionCode, ss: ssArg, code }) {
+  const session_code = String(sessionCode || ssArg || '').trim()
+  const ss = encodeURIComponent(session_code)
   const res = await fetch(url(`/pos/sessions/${ss}`), {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ code: String(code || '').trim() }),
+    body: JSON.stringify({
+      ss: session_code,
+      code: String(code || '').trim(),
+    }),
   })
   const data = await readJson(res)
   if (res.status === 200) return { ok: true, message: data?.message || 'Session deleted successfully' }
