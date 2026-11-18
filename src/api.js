@@ -319,14 +319,16 @@ export function normalizeSessionHistory(raw) {
   for (const key of SESSION_HISTORY_KEYS) {
     history[key] = !!src[key]
   }
-  // Keep any extra true flags from API
+  history.tipped = parseDecimal(src.tipped, 0)
+  // Keep any extra true flags from API (skip tipped — numeric)
   for (const [key, value] of Object.entries(src)) {
-    if (!(key in history)) history[key] = !!value
+    if (key === 'tipped' || key in history) continue
+    history[key] = !!value
   }
   return history
 }
 
-/** Labels for true session_history flags, in order. */
+/** Labels for true session_history flags, in order. Tip shows when tipped > 0. */
 export function sessionHistoryTrueLabels(history) {
   const h = history && typeof history === 'object' ? history : {}
   const labels = []
@@ -334,8 +336,12 @@ export function sessionHistoryTrueLabels(history) {
     if (!h[key]) continue
     labels.push(key === 'payment_verified' ? 'payment verified' : key)
   }
+  const tip = Number(h.tipped)
+  if (Number.isFinite(tip) && tip > 0) {
+    labels.push(`tip ${tip.toLocaleString(undefined, { maximumFractionDigits: 2 })}`)
+  }
   for (const [key, value] of Object.entries(h)) {
-    if (SESSION_HISTORY_KEYS.includes(key) || !value) continue
+    if (SESSION_HISTORY_KEYS.includes(key) || key === 'tipped' || !value) continue
     labels.push(String(key).replace(/_/g, ' '))
   }
   return labels

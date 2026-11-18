@@ -1451,9 +1451,6 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
               placeholder="code"
               required
             />
-            <span className="field-hint">
-              Required for add, edit, receipt upload, and delete. Admin delete also removes ImgBB images.
-            </span>
           </label>
           <ul className="payment-list">
             {payments.length === 0 && <li className="muted">No payment methods yet.</li>}
