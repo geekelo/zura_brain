@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ClientPhoneQr from './ClientPhoneQr'
 import PhoneQrScanner from './PhoneQrScanner'
 import {
@@ -44,6 +44,8 @@ import {
 import SessionActions from './SessionActions'
 import SessionTherapists from './SessionTherapists'
 import './App.css'
+
+const SESSIONS_AUTO_REFRESH_MS = 3 * 60 * 1000
 
 function todayISO() {
   const d = new Date()
@@ -262,6 +264,7 @@ export default function App() {
   const [verifyCode, setVerifyCode] = useState('')
   const [verifyBusy, setVerifyBusy] = useState(false)
   const [receiptLightbox, setReceiptLightbox] = useState('')
+  const [autoRefreshSessions, setAutoRefreshSessions] = useState(false)
 
   const clientBookings = client
     ? booked[clientKey(client)] || bookedByClient[clientKey(client)] || []
@@ -273,9 +276,37 @@ export default function App() {
     setTimeout(() => setToast(''), 2800)
   }
 
+  const sessionsAutoRefreshTimerRef = useRef(null)
+  const refreshSessionsRef = useRef(null)
+  const autoRefreshSessionsRef = useRef(false)
+
   function sessionsRefreshOpts() {
     if (listMode === 'client' && client?.phone) return { phone: client.phone }
     return {}
+  }
+
+  function clearSessionsAutoRefresh() {
+    if (sessionsAutoRefreshTimerRef.current) {
+      clearTimeout(sessionsAutoRefreshTimerRef.current)
+      sessionsAutoRefreshTimerRef.current = null
+    }
+  }
+
+  function scheduleSessionsAutoRefresh() {
+    clearSessionsAutoRefresh()
+    if (!autoRefreshSessionsRef.current) return
+    sessionsAutoRefreshTimerRef.current = setTimeout(() => {
+      if (!autoRefreshSessionsRef.current) return
+      refreshSessionsRef.current?.()
+    }, SESSIONS_AUTO_REFRESH_MS)
+  }
+
+  function toggleAutoRefreshSessions() {
+    const next = !autoRefreshSessionsRef.current
+    autoRefreshSessionsRef.current = next
+    setAutoRefreshSessions(next)
+    if (next) scheduleSessionsAutoRefresh()
+    else clearSessionsAutoRefresh()
   }
 
   async function refreshSessions(opts = sessionsRefreshOpts()) {
@@ -362,11 +393,18 @@ export default function App() {
       showToast(err?.message || 'Could not load sessions')
     } finally {
       setLoadingSessions(false)
+      // When auto refresh is on, next run is 3 minutes after this refresh finishes.
+      scheduleSessionsAutoRefresh()
     }
   }
 
+  refreshSessionsRef.current = refreshSessions
+
   useEffect(() => {
     refreshSessions()
+    return () => {
+      clearSessionsAutoRefresh()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -1853,6 +1891,14 @@ export default function App() {
                   >
                     Refresh
                   </button>
+                  <button
+                    type="button"
+                    className={`btn small ${autoRefreshSessions ? 'primary' : 'ghost'}`}
+                    aria-pressed={autoRefreshSessions}
+                    onClick={toggleAutoRefreshSessions}
+                  >
+                    Auto refresh {autoRefreshSessions ? 'on' : 'off'}
+                  </button>
                 </>
               ) : (
                 <>
@@ -1901,6 +1947,14 @@ export default function App() {
                     onClick={() => refreshSessions()}
                   >
                     Refresh
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn small ${autoRefreshSessions ? 'primary' : 'ghost'}`}
+                    aria-pressed={autoRefreshSessions}
+                    onClick={toggleAutoRefreshSessions}
+                  >
+                    Auto refresh {autoRefreshSessions ? 'on' : 'off'}
                   </button>
                 </>
               )}
