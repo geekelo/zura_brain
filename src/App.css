@@ -340,10 +340,13 @@
 .badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: 3px 10px;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 600;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .badge.soft {
@@ -364,6 +367,15 @@
 .badge.done {
   background: var(--done-bg);
   color: var(--done);
+}
+
+.badge.completed {
+  background: linear-gradient(135deg, #f97316 0%, #ec4899 100%);
+  color: #fff;
+  padding: 4px 12px;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 1px 4px rgba(236, 72, 153, 0.35);
 }
 
 .client-card {
@@ -1087,7 +1099,8 @@ table tbody tr:hover {
 
 .session-table th:nth-child(8),
 .session-table td:nth-child(8) {
-  width: 5.5rem;
+  width: 7.25rem;
+  white-space: nowrap;
 }
 
 .session-table th:nth-child(9),
@@ -1433,9 +1446,8 @@ table tbody tr:hover {
 }
 
 .actions-cell {
-  display: flex;
-  gap: 6px;
   white-space: nowrap;
+  vertical-align: top;
 }
 
 .session-cards {

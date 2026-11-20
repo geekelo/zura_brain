@@ -2034,11 +2034,11 @@ export default function App() {
                         <td>
                           <span
                             className={`badge ${
-                              s.status === 'settled' ||
-                              s.status === 'completed' ||
-                              s.status === 'ended'
-                                ? 'done'
-                                : 'pending'
+                              s.status === 'completed'
+                                ? 'completed'
+                                : s.status === 'settled' || s.status === 'ended'
+                                  ? 'done'
+                                  : 'pending'
                             }`}
                           >
                             {s.status}
@@ -2132,11 +2132,11 @@ export default function App() {
                       <span className="session-card-index">#{i + 1}</span>
                       <span
                         className={`badge ${
-                          s.status === 'settled' ||
-                          s.status === 'completed' ||
-                          s.status === 'ended'
-                            ? 'done'
-                            : 'pending'
+                          s.status === 'completed'
+                            ? 'completed'
+                            : s.status === 'settled' || s.status === 'ended'
+                              ? 'done'
+                              : 'pending'
                         }`}
                       >
                         {s.status}
