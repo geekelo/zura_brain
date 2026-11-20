@@ -80,11 +80,33 @@ export default function AddCommentModal({ session, showToast, onClose, onUpdated
             .filter(Boolean)
             .join(' · ')}
         </p>
+
         {existing.length > 0 ? (
-          <p className="muted note-intro">
-            {existing.length} existing comment{existing.length === 1 ? '' : 's'} will be kept.
-          </p>
-        ) : null}
+          <ul className="comment-list add-comment-existing">
+            {existing.map((c, i) => (
+              <li
+                key={`${c.date_time || c.dateTime || c.name}-${i}`}
+                className={c.resolved ? 'comment-resolved' : ''}
+              >
+                <div className="comment-head">
+                  <strong>{c.name || '—'}</strong>
+                  {c.date_time || c.dateTime ? (
+                    <span className="muted">
+                      {' '}
+                      · {new Date(c.date_time || c.dateTime).toLocaleString()}
+                    </span>
+                  ) : null}
+                  {c.resolved ? (
+                    <span className="badge soft comment-resolved-badge">resolved</span>
+                  ) : null}
+                </div>
+                <p>{c.comment}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted note-intro">No comments yet.</p>
+        )}
 
         <form className="session-form" onSubmit={submit}>
           <label className="full">
