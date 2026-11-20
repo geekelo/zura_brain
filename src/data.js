@@ -76,7 +76,7 @@ export const clientSupportTypes = [
   { value: 'payin', label: 'Pay in' },
   { value: 'payout', label: 'Pay out' },
 ]
-export const DEFAULT_CLIENT_SUPPORT_TYPE = 'payin'
+export const DEFAULT_CLIENT_SUPPORT_TYPE = 'payout'
 export const DEFAULT_LUNEZ_AMOUNT = 0
 export const DEFAULT_LUNEZ_AMOUNT_YES = 10000
 export const lunezAmountOptions = [10000, 20000, 30000, 40000, 50000, 60000]
