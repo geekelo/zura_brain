@@ -315,7 +315,15 @@ function ReceiptImageField({ previewUrl, fileName, onPick, onClear, disabled, sh
   )
 }
 
-export default function SessionActions({ session, clientName, onUpdated, onDeleted, onClose, showToast }) {
+export default function SessionActions({
+  session,
+  clientName,
+  onUpdated,
+  onDeleted,
+  onRefreshSessions,
+  onClose,
+  showToast,
+}) {
   const [tab, setTab] = useState('update') // update | status | times | comments | payments | note | delete
   const [busy, setBusy] = useState(false)
   const [updateForm, setUpdateForm] = useState(() => emptyUpdate(session))
@@ -360,12 +368,27 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
     setUpdateForm((f) => ({ ...f, start_time: start, end_time: end }))
   }, [session.sessionCode, session.startTime, session.endTime])
 
+  // Keep payments / status in sync after parent session refresh.
+  const paymentSyncKey = (Array.isArray(session.paymentMethods) ? session.paymentMethods : [])
+    .map((p) => `${p.id}:${p.status}:${p.updatedAt || ''}:${p.amount}`)
+    .join('|')
+  useEffect(() => {
+    setPayments(Array.isArray(session.paymentMethods) ? [...session.paymentMethods] : [])
+  }, [session.sessionCode, paymentSyncKey])
+  useEffect(() => {
+    setStatusForm((f) => ({ ...f, status: session.status || f.status }))
+  }, [session.sessionCode, session.status])
+
   useEffect(() => {
     return () => {
       if (receiptPreview) URL.revokeObjectURL(receiptPreview)
       if (editReceiptPreview) URL.revokeObjectURL(editReceiptPreview)
     }
   }, [receiptPreview, editReceiptPreview])
+
+  function refreshSessions() {
+    if (typeof onRefreshSessions === 'function') onRefreshSessions()
+  }
 
   function pickReceipt(file, { forEdit = false } = {}) {
     if (!file) return
@@ -422,6 +445,7 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
       ...session,
       paymentMethods: nextList,
     })
+    refreshSessions()
   }
 
   function applySession(apiSession) {
@@ -441,6 +465,7 @@ export default function SessionActions({ session, clientName, onUpdated, onDelet
     if (Array.isArray(apiSession.payment_methods)) {
       setPayments(next.paymentMethods)
     }
+    refreshSessions()
   }
 
   function setP(key, value) {

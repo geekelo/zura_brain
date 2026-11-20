@@ -18,7 +18,13 @@ function roleLabel(role) {
   return r.charAt(0).toUpperCase() + r.slice(1)
 }
 
-export default function SessionTherapists({ session, showToast, onClose, onUpdated }) {
+export default function SessionTherapists({
+  session,
+  showToast,
+  onClose,
+  onUpdated,
+  onRefreshSessions,
+}) {
   const [busy, setBusy] = useState(false)
   const [loadingRoster, setLoadingRoster] = useState(true)
   const [roster, setRoster] = useState([])
@@ -74,6 +80,7 @@ export default function SessionTherapists({ session, showToast, onClose, onUpdat
       therapists,
       therapistLabel: therapists.join(', '),
     })
+    if (typeof onRefreshSessions === 'function') onRefreshSessions()
   }
 
   function toggleTherapist(t) {

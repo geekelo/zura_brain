@@ -273,7 +273,12 @@ export default function App() {
     setTimeout(() => setToast(''), 2800)
   }
 
-  async function refreshSessions(opts = {}) {
+  function sessionsRefreshOpts() {
+    if (listMode === 'client' && client?.phone) return { phone: client.phone }
+    return {}
+  }
+
+  async function refreshSessions(opts = sessionsRefreshOpts()) {
     setLoadingSessions(true)
     try {
       const result = await listPosSessions(opts)
@@ -733,7 +738,7 @@ export default function App() {
       setPanel(null)
       setDateFilter('today')
       showToast('Session saved')
-      refreshSessions(listMode === 'client' ? { phone: client.phone } : undefined)
+      refreshSessions()
     } catch (err) {
       showToast(err?.message || 'Network error — could not save session')
     } finally {
@@ -795,8 +800,7 @@ export default function App() {
 
   function removeSavedSession(sessionCode) {
     setSaved((list) => list.filter((s) => s.sessionCode !== sessionCode))
-    if (listMode === 'client' && client?.phone) refreshSessions({ phone: client.phone })
-    else refreshSessions()
+    refreshSessions()
   }
 
   function sessionTimeControls(s) {
@@ -832,6 +836,7 @@ export default function App() {
       })
       upsertSavedSession(row)
       showToast('Session started')
+      refreshSessions()
     } catch (err) {
       showToast(err?.message || 'Could not start session')
     }
@@ -866,6 +871,7 @@ export default function App() {
       })
       upsertSavedSession(row)
       showToast('Session ended')
+      refreshSessions()
     } catch (err) {
       showToast(err?.message || 'Could not end session')
     }
@@ -913,6 +919,7 @@ export default function App() {
       upsertSavedSession(row)
       closeVerifyPayment()
       showToast('Payment verified')
+      refreshSessions()
     } catch (err) {
       showToast(err?.message || 'Could not verify payment')
     } finally {
@@ -1679,6 +1686,7 @@ export default function App() {
             onClose={() => setActiveSession(null)}
             onUpdated={upsertSavedSession}
             onDeleted={removeSavedSession}
+            onRefreshSessions={refreshSessions}
           />
         )}
 
@@ -1689,6 +1697,7 @@ export default function App() {
             showToast={showToast}
             onClose={() => setAssignSession(null)}
             onUpdated={upsertSavedSession}
+            onRefreshSessions={refreshSessions}
           />
         )}
 
