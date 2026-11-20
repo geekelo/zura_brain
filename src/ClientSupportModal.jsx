@@ -38,7 +38,7 @@ export default function ClientSupportModal({ session, showToast, onClose, onUpda
   const [mode, setMode] = useState('list') // list | form
   const [editingId, setEditingId] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [st, setSt] = useState('')
+  const [th, setTh] = useState('')
   const [form, setForm] = useState(() => emptyForm(null))
 
   useEffect(() => {
@@ -97,8 +97,8 @@ export default function ClientSupportModal({ session, showToast, onClose, onUpda
       showToast('Session code required')
       return
     }
-    if (!st.trim()) {
-      showToast('Creator staff code is required')
+    if (!th.trim()) {
+      showToast('Creator therapist code is required')
       return
     }
     const desc = String(form.description || '').trim()
@@ -127,7 +127,7 @@ export default function ClientSupportModal({ session, showToast, onClose, onUpda
       const result = await updatePosClientSupport({
         sessionCode: session.sessionCode,
         ss: session.sessionCode,
-        st: st.trim(),
+        th: th.trim(),
         client_support,
       })
       if (!result.ok) {
@@ -154,8 +154,8 @@ export default function ClientSupportModal({ session, showToast, onClose, onUpda
       showToast('Session code required')
       return
     }
-    if (!st.trim()) {
-      showToast('Creator staff code is required to delete')
+    if (!th.trim()) {
+      showToast('Creator therapist code is required to delete')
       return
     }
     if (row.settled) {
@@ -169,7 +169,7 @@ export default function ClientSupportModal({ session, showToast, onClose, onUpda
       const result = await deletePosClientSupport({
         sessionCode: session.sessionCode,
         ss: session.sessionCode,
-        st: st.trim(),
+        th: th.trim(),
         id: row.id,
       })
       if (!result.ok) {
@@ -212,13 +212,13 @@ export default function ClientSupportModal({ session, showToast, onClose, onUpda
 
         <label className="staff-code-field full" style={{ display: 'block', marginBottom: 12 }}>
           <span className="label-text">
-            Creator code <em>*</em>
+            Creator therapist code <em>*</em>
           </span>
           <input
             type="password"
             autoComplete="off"
-            value={st}
-            onChange={(e) => setSt(e.target.value)}
+            value={th}
+            onChange={(e) => setTh(e.target.value)}
             placeholder="ADA1"
             autoFocus={mode === 'list'}
           />
@@ -266,7 +266,7 @@ export default function ClientSupportModal({ session, showToast, onClose, onUpda
                       <button
                         type="button"
                         className="text-btn"
-                        disabled={busy || row.settled || !st.trim()}
+                        disabled={busy || row.settled || !th.trim()}
                         onClick={() => removeSupport(row)}
                       >
                         Delete
@@ -353,7 +353,7 @@ export default function ClientSupportModal({ session, showToast, onClose, onUpda
               >
                 Back
               </button>
-              <button type="submit" className="btn primary" disabled={busy || !st.trim()}>
+              <button type="submit" className="btn primary" disabled={busy || !th.trim()}>
                 {busy ? 'Saving…' : editingId != null ? 'Save changes' : 'Add support'}
               </button>
             </div>

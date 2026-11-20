@@ -592,7 +592,7 @@ export async function createPosSession({ st, client_phone, session, client_suppo
  * Without `client_support.id` → create a new support.
  * With `client_support.id` → update that support.
  */
-export async function updatePosClientSupport({ sessionCode, ss, st, th, tc, code, client_support }) {
+export async function updatePosClientSupport({ sessionCode, ss, th, tc, code, client_support }) {
   const session_code = String(sessionCode || ss || '').trim()
   const key = encodeURIComponent(session_code)
   const support = buildClientSupportBody(client_support)
@@ -610,7 +610,6 @@ export async function updatePosClientSupport({ sessionCode, ss, st, th, tc, code
     ss: session_code,
     client_support: support,
   }
-  if (st) body.st = String(st).trim()
   if (th) body.th = String(th).trim()
   if (tc) body.tc = String(tc).trim()
   if (code) body.code = String(code).trim()
@@ -633,13 +632,13 @@ export async function updatePosClientSupport({ sessionCode, ss, st, th, tc, code
 /**
  * DELETE /pos/sessions/:ss/client_support
  * Pass `id` to delete a specific support; otherwise deletes the latest.
+ * Auth: creator `th`, or admin `tc` / `code`.
  */
-export async function deletePosClientSupport({ sessionCode, ss, st, th, tc, code, id }) {
+export async function deletePosClientSupport({ sessionCode, ss, th, tc, code, id }) {
   const session_code = String(sessionCode || ss || '').trim()
   const key = encodeURIComponent(session_code)
   const body = { ss: session_code }
   if (id != null && id !== '') body.id = id
-  if (st) body.st = String(st).trim()
   if (th) body.th = String(th).trim()
   if (tc) body.tc = String(tc).trim()
   if (code) body.code = String(code).trim()
