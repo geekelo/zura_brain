@@ -27,7 +27,6 @@ import {
   createPosSession,
   listPosSessions,
   setPosSessionTimes,
-  verifyPosSessionPayment,
   createPosAdminNote,
   updatePosClientPreferences,
   normalizeClient,
@@ -43,6 +42,13 @@ import {
 } from './api'
 import SessionActions from './SessionActions'
 import SessionTherapists from './SessionTherapists'
+import AddPaymentModal from './AddPaymentModal'
+import ConfirmPaymentsModal from './ConfirmPaymentsModal'
+import IconButton, {
+  IconUsers,
+  IconPaymentPlus,
+  IconConfirmPayment,
+} from './IconButton'
 import './App.css'
 
 const SESSIONS_AUTO_REFRESH_MS = 3 * 60 * 1000
@@ -260,9 +266,8 @@ export default function App() {
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [activeSession, setActiveSession] = useState(null)
   const [assignSession, setAssignSession] = useState(null)
-  const [verifySession, setVerifySession] = useState(null)
-  const [verifyCode, setVerifyCode] = useState('')
-  const [verifyBusy, setVerifyBusy] = useState(false)
+  const [addPaymentSession, setAddPaymentSession] = useState(null)
+  const [confirmPaymentsSession, setConfirmPaymentsSession] = useState(null)
   const [receiptLightbox, setReceiptLightbox] = useState('')
   const [autoRefreshSessions, setAutoRefreshSessions] = useState(false)
 
@@ -433,7 +438,8 @@ export default function App() {
     setPanel(null)
     setActiveSession(null)
     setAssignSession(null)
-    setVerifySession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
     setNoteSent(false)
     setSearching(true)
 
@@ -475,7 +481,8 @@ export default function App() {
     setResults([])
     setActiveSession(null)
     setAssignSession(null)
-    setVerifySession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
     setClientForm(emptyClientForm())
     setPanel('create')
   }
@@ -572,7 +579,8 @@ export default function App() {
     setForm(emptyForm())
     setActiveSession(null)
     setAssignSession(null)
-    setVerifySession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
     setNote('')
     setNoteSent(false)
     const key = clientKey(c)
@@ -590,7 +598,8 @@ export default function App() {
     setPanel(null)
     setActiveSession(null)
     setAssignSession(null)
-    setVerifySession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
     setListMode('client')
     await refreshSessions({ phone: client.phone })
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
@@ -600,7 +609,8 @@ export default function App() {
     if (!client) return
     setActiveSession(null)
     setAssignSession(null)
-    setVerifySession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
     setForm(emptyForm())
     setPanel('session')
   }
@@ -834,6 +844,26 @@ export default function App() {
     setAssignSession((cur) =>
       cur && code && cur.sessionCode === code ? next : cur,
     )
+    setAddPaymentSession((cur) =>
+      cur && code && cur.sessionCode === code ? next : cur,
+    )
+    setConfirmPaymentsSession((cur) =>
+      cur && code && cur.sessionCode === code ? next : cur,
+    )
+  }
+
+  function applyPaymentMethods(sessionCode, nextList) {
+    const patch = (cur) =>
+      cur && cur.sessionCode === sessionCode
+        ? { ...cur, paymentMethods: nextList }
+        : cur
+    setSaved((list) =>
+      list.map((s) => (s.sessionCode === sessionCode ? { ...s, paymentMethods: nextList } : s)),
+    )
+    setActiveSession(patch)
+    setAssignSession(patch)
+    setAddPaymentSession(patch)
+    setConfirmPaymentsSession(patch)
   }
 
   function removeSavedSession(sessionCode) {
@@ -915,54 +945,34 @@ export default function App() {
     }
   }
 
-  function openVerifyPayment(s) {
-    setVerifySession(s)
-    setVerifyCode('')
+  function openAssignSession(s) {
+    setPanel(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
+    setAssignSession(s)
   }
 
-  function closeVerifyPayment() {
-    setVerifySession(null)
-    setVerifyCode('')
-    setVerifyBusy(false)
+  function openAddPayment(s) {
+    setPanel(null)
+    setAssignSession(null)
+    setConfirmPaymentsSession(null)
+    setAddPaymentSession(s)
   }
 
-  async function submitVerifyPayment(e) {
-    e?.preventDefault()
-    if (!verifySession?.sessionCode) {
-      showToast('Session code required')
-      return
-    }
-    if (!verifyCode.trim()) {
-      showToast('Enter therapist or admin code')
-      return
-    }
-    if (verifyBusy) return
-    setVerifyBusy(true)
-    try {
-      const result = await verifyPosSessionPayment({
-        sessionCode: verifySession.sessionCode,
-        code: verifyCode.trim(),
-      })
-      if (!result.ok) {
-        showToast(result.error)
-        return
-      }
-      const row = normalizeSession(result.session, {
-        clientName: verifySession.clientName,
-        clientPhone: verifySession.clientPhone,
-        staffCode: verifySession.staffCode,
-        paymentMethods: verifySession.paymentMethods,
-        sessionTherapists: verifySession.sessionTherapists,
-      })
-      upsertSavedSession(row)
-      closeVerifyPayment()
-      showToast('Payment verified')
-      refreshSessions()
-    } catch (err) {
-      showToast(err?.message || 'Could not verify payment')
-    } finally {
-      setVerifyBusy(false)
-    }
+  function openConfirmPayments(s) {
+    setPanel(null)
+    setAssignSession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(s)
+  }
+
+  function openManageSession(s) {
+    setPanel(null)
+    setAssignSession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
+    setActiveSession(s)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function sendNote(e) {
@@ -1725,17 +1735,9 @@ export default function App() {
             onUpdated={upsertSavedSession}
             onDeleted={removeSavedSession}
             onRefreshSessions={refreshSessions}
-          />
-        )}
-
-        {assignSession && (
-          <SessionTherapists
-            key={`assign-${assignSession.sessionCode || 'session'}`}
-            session={assignSession}
-            showToast={showToast}
-            onClose={() => setAssignSession(null)}
-            onUpdated={upsertSavedSession}
-            onRefreshSessions={refreshSessions}
+            onOpenAddPayment={() => openAddPayment(activeSession)}
+            onOpenConfirmPayments={() => openConfirmPayments(activeSession)}
+            onOpenAssign={() => openAssignSession(activeSession)}
           />
         )}
 
@@ -2059,19 +2061,14 @@ export default function App() {
                                 formatSessionTherapistsLabel(s.sessionTherapists) ||
                                 '—'}
                             </span>
-                            <button
-                              type="button"
-                              className="btn small primary"
+                            <IconButton
+                              label="Assign therapists"
+                              variant="primary"
                               disabled={!s.sessionCode}
-                              onClick={() => {
-                                setPanel(null)
-                                setActiveSession(null)
-                                setAssignSession(s)
-                                window.scrollTo({ top: 0, behavior: 'smooth' })
-                              }}
+                              onClick={() => openAssignSession(s)}
                             >
-                              Assign
-                            </button>
+                              <IconUsers />
+                            </IconButton>
                           </div>
                         </td>
                         <td>
@@ -2132,28 +2129,28 @@ export default function App() {
                                 End
                               </button>
                             )}
-                            {!s.paymentVerified && (
-                              <button
-                                type="button"
-                                className="btn small primary"
-                                disabled={!s.sessionCode}
-                                onClick={() => openVerifyPayment(s)}
-                              >
-                                Verify payment
-                              </button>
-                            )}
+                            <IconButton
+                              label="Confirm payments"
+                              variant="primary"
+                              disabled={!s.sessionCode}
+                              onClick={() => openConfirmPayments(s)}
+                            >
+                              <IconConfirmPayment />
+                            </IconButton>
+                            <IconButton
+                              label="Add payment"
+                              variant="primary"
+                              disabled={!s.sessionCode}
+                              onClick={() => openAddPayment(s)}
+                            >
+                              <IconPaymentPlus />
+                            </IconButton>
                             <button
                               type="button"
                               className="btn small ghost"
                               disabled={!s.sessionCode}
                               title="Manage session"
-                              onClick={() => {
-                                setPanel(null)
-                                setAssignSession(null)
-                                setVerifySession(null)
-                                setActiveSession(s)
-                                window.scrollTo({ top: 0, behavior: 'smooth' })
-                              }}
+                              onClick={() => openManageSession(s)}
                             >
                               Manage
                             </button>
@@ -2284,41 +2281,36 @@ export default function App() {
                           End
                         </button>
                       )}
-                      {!s.paymentVerified && (
-                        <button
-                          type="button"
-                          className="btn small primary"
-                          disabled={!s.sessionCode}
-                          onClick={() => openVerifyPayment(s)}
-                        >
-                          Verify payment
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="btn small primary"
+                      <IconButton
+                        label="Assign therapists"
+                        variant="primary"
                         disabled={!s.sessionCode}
-                        onClick={() => {
-                          setPanel(null)
-                          setActiveSession(null)
-                          setAssignSession(s)
-                          window.scrollTo({ top: 0, behavior: 'smooth' })
-                        }}
+                        onClick={() => openAssignSession(s)}
                       >
-                        Assign
-                      </button>
+                        <IconUsers />
+                      </IconButton>
+                      <IconButton
+                        label="Confirm payments"
+                        variant="primary"
+                        disabled={!s.sessionCode}
+                        onClick={() => openConfirmPayments(s)}
+                      >
+                        <IconConfirmPayment />
+                      </IconButton>
+                      <IconButton
+                        label="Add payment"
+                        variant="primary"
+                        disabled={!s.sessionCode}
+                        onClick={() => openAddPayment(s)}
+                      >
+                        <IconPaymentPlus />
+                      </IconButton>
                       <button
                         type="button"
                         className="btn small ghost"
                         disabled={!s.sessionCode}
                         title="Manage session"
-                        onClick={() => {
-                          setPanel(null)
-                          setAssignSession(null)
-                          setVerifySession(null)
-                          setActiveSession(s)
-                          window.scrollTo({ top: 0, behavior: 'smooth' })
-                        }}
+                        onClick={() => openManageSession(s)}
                       >
                         Manage
                       </button>
@@ -2332,52 +2324,64 @@ export default function App() {
       </section>
       </main>
 
-      {verifySession && (
-        <div className="modal-backdrop" role="presentation" onClick={closeVerifyPayment}>
+      {assignSession && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => setAssignSession(null)}
+        >
           <div
-            className="modal-card"
+            className="modal-card modal-card-wide modal-card-sheet"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="verify-payment-title"
+            aria-labelledby="assign-therapists-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="panel-head">
-              <h2 id="verify-payment-title">Verify payment</h2>
-              <button type="button" className="text-btn" onClick={closeVerifyPayment}>
-                Close
-              </button>
-            </div>
-            <p className="muted note-intro">
-              {[verifySession.clientName || 'Client', verifySession.clientPhone, formatSessionCycle(verifySession)]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-            <form className="session-form" onSubmit={submitVerifyPayment}>
-              <label className="staff-code-field full">
-                <span className="label-text">
-                  Therapist or admin code <em>*</em>
-                </span>
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={verifyCode}
-                  onChange={(e) => setVerifyCode(e.target.value)}
-                  placeholder="code"
-                  required
-                  autoFocus
-                />
-              </label>
-              <div className="form-actions full">
-                <button type="button" className="btn ghost" onClick={closeVerifyPayment}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn primary" disabled={verifyBusy || !verifyCode.trim()}>
-                  {verifyBusy ? 'Verifying…' : 'Verify payment'}
-                </button>
-              </div>
-            </form>
+            <SessionTherapists
+              key={`assign-${assignSession.sessionCode || 'session'}`}
+              session={assignSession}
+              showToast={showToast}
+              onClose={() => setAssignSession(null)}
+              onUpdated={upsertSavedSession}
+              onRefreshSessions={refreshSessions}
+              embedded
+            />
           </div>
         </div>
+      )}
+
+      {addPaymentSession && (
+        <AddPaymentModal
+          session={addPaymentSession}
+          showToast={showToast}
+          onClose={() => setAddPaymentSession(null)}
+          onAdded={(row) => {
+            const nextList = [
+              row,
+              ...(Array.isArray(addPaymentSession.paymentMethods)
+                ? addPaymentSession.paymentMethods.filter((p) => p.id !== row.id)
+                : []),
+            ]
+            applyPaymentMethods(addPaymentSession.sessionCode, nextList)
+            refreshSessions()
+          }}
+        />
+      )}
+
+      {confirmPaymentsSession && (
+        <ConfirmPaymentsModal
+          session={confirmPaymentsSession}
+          showToast={showToast}
+          onClose={() => setConfirmPaymentsSession(null)}
+          onSessionUpdated={(row) => {
+            upsertSavedSession(row)
+            refreshSessions()
+          }}
+          onPaymentUpdated={(nextList) => {
+            applyPaymentMethods(confirmPaymentsSession.sessionCode, nextList)
+            refreshSessions()
+          }}
+        />
       )}
 
       {receiptLightbox && (

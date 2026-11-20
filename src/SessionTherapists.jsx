@@ -24,6 +24,7 @@ export default function SessionTherapists({
   onClose,
   onUpdated,
   onRefreshSessions,
+  embedded = false,
 }) {
   const [busy, setBusy] = useState(false)
   const [loadingRoster, setLoadingRoster] = useState(true)
@@ -260,9 +261,17 @@ export default function SessionTherapists({
   }
 
   return (
-    <section className="card panel-card session-actions assign-panel">
+    <section
+      className={
+        embedded
+          ? 'assign-panel assign-panel-embedded'
+          : 'card panel-card session-actions assign-panel'
+      }
+    >
       <div className="panel-head">
-        <h2>Assign therapists · {session.sessionCode || 'Session'}</h2>
+        <h2 id="assign-therapists-title">
+          Assign therapists · {session.sessionCode || 'Session'}
+        </h2>
         <button type="button" className="text-btn" onClick={onClose}>
           Close
         </button>

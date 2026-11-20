@@ -28,7 +28,6 @@ import {
   resolvePosSessionComment,
   setPosSessionStatus,
   setPosSessionTimes,
-  createPosPaymentMethod,
   updatePosPaymentMethod,
   deletePosPaymentMethod,
   createPosAdminNote,
@@ -106,15 +105,6 @@ function emptyUpdate(session) {
         : DEFAULT_CLIENT_SUPPORT_AMOUNT,
     ),
     client_support_type: session.clientSupport?.type || DEFAULT_CLIENT_SUPPORT_TYPE,
-  }
-}
-
-function emptyPaymentForm(session) {
-  return {
-    source: 'pos',
-    type: 'massage',
-    amount: String(session.amount || ''),
-    status: 'pending',
   }
 }
 
@@ -321,6 +311,9 @@ export default function SessionActions({
   onUpdated,
   onDeleted,
   onRefreshSessions,
+  onOpenAddPayment,
+  onOpenConfirmPayments,
+  onOpenAssign,
   onClose,
   showToast,
 }) {
@@ -340,9 +333,6 @@ export default function SessionActions({
   const [payments, setPayments] = useState(() =>
     Array.isArray(session.paymentMethods) ? [...session.paymentMethods] : [],
   )
-  const [paymentForm, setPaymentForm] = useState(() => emptyPaymentForm(session))
-  const [receiptFile, setReceiptFile] = useState(null)
-  const [receiptPreview, setReceiptPreview] = useState('')
   const [editReceiptFile, setEditReceiptFile] = useState(null)
   const [editReceiptPreview, setEditReceiptPreview] = useState('')
   const [editingPaymentId, setEditingPaymentId] = useState(null)
@@ -381,43 +371,30 @@ export default function SessionActions({
 
   useEffect(() => {
     return () => {
-      if (receiptPreview) URL.revokeObjectURL(receiptPreview)
       if (editReceiptPreview) URL.revokeObjectURL(editReceiptPreview)
     }
-  }, [receiptPreview, editReceiptPreview])
+  }, [editReceiptPreview])
 
   function refreshSessions() {
     if (typeof onRefreshSessions === 'function') onRefreshSessions()
   }
 
-  function pickReceipt(file, { forEdit = false } = {}) {
+  function pickReceipt(file) {
     if (!file) return
     if (!String(file.type || '').startsWith('image/')) {
       showToast('Choose an image file')
       return
     }
     const url = URL.createObjectURL(file)
-    if (forEdit) {
-      if (editReceiptPreview) URL.revokeObjectURL(editReceiptPreview)
-      setEditReceiptFile(file)
-      setEditReceiptPreview(url)
-      return
-    }
-    if (receiptPreview) URL.revokeObjectURL(receiptPreview)
-    setReceiptFile(file)
-    setReceiptPreview(url)
+    if (editReceiptPreview) URL.revokeObjectURL(editReceiptPreview)
+    setEditReceiptFile(file)
+    setEditReceiptPreview(url)
   }
 
-  function clearReceipt({ forEdit = false } = {}) {
-    if (forEdit) {
-      if (editReceiptPreview) URL.revokeObjectURL(editReceiptPreview)
-      setEditReceiptFile(null)
-      setEditReceiptPreview('')
-      return
-    }
-    if (receiptPreview) URL.revokeObjectURL(receiptPreview)
-    setReceiptFile(null)
-    setReceiptPreview('')
+  function clearReceipt() {
+    if (editReceiptPreview) URL.revokeObjectURL(editReceiptPreview)
+    setEditReceiptFile(null)
+    setEditReceiptPreview('')
   }
 
   const ss = session.sessionCode
@@ -468,58 +445,12 @@ export default function SessionActions({
     refreshSessions()
   }
 
-  function setP(key, value) {
-    setPaymentForm((f) => ({ ...f, [key]: value }))
-  }
-
   function setEP(key, value) {
     setEditPaymentForm((f) => ({ ...f, [key]: value }))
   }
 
-  function submitCreatePayment(e) {
-    e?.preventDefault()
-    if (!ss) {
-      showToast('Session code required to add payment')
-      return
-    }
-    const auth = paymentAuth()
-    if (!auth) {
-      showToast('Enter creator or admin code')
-      return
-    }
-    const amount = Number(paymentForm.amount)
-    if (!(amount > 0)) {
-      showToast('Amount must be greater than 0')
-      return
-    }
-    run(async () => {
-      const result = await createPosPaymentMethod({
-        session_code: ss,
-        ...auth,
-        payment_method: {
-          source: paymentForm.source,
-          type: paymentForm.type,
-          amount,
-          status: paymentForm.status,
-        },
-        receipt: receiptFile || undefined,
-      })
-      if (!result.ok) {
-        showToast(result.error)
-        return
-      }
-      const row = normalizePaymentMethod(result.paymentMethod)
-      syncPayments([row, ...payments.filter((p) => p.id !== row.id)])
-      setPaymentForm(emptyPaymentForm(session))
-      clearReceipt()
-      showToast(
-        paymentReceiptImgUrl(row) ? 'Payment method added with receipt' : 'Payment method added',
-      )
-    })
-  }
-
   function startEditPayment(pm) {
-    clearReceipt({ forEdit: true })
+    clearReceipt()
     setEditingPaymentId(pm.id)
     setEditPaymentForm({
       source: pm.source,
@@ -530,7 +461,7 @@ export default function SessionActions({
   }
 
   function cancelEditPayment() {
-    clearReceipt({ forEdit: true })
+    clearReceipt()
     setEditingPaymentId(null)
     setEditPaymentForm(null)
   }
@@ -1464,6 +1395,32 @@ export default function SessionActions({
 
       {tab === 'payments' && (
         <div className="payments-panel">
+          <div className="payments-popup-actions">
+            <button
+              type="button"
+              className="btn small primary"
+              disabled={!ss}
+              onClick={() => onOpenAddPayment?.()}
+            >
+              Add payment
+            </button>
+            <button
+              type="button"
+              className="btn small primary"
+              disabled={!ss}
+              onClick={() => onOpenConfirmPayments?.()}
+            >
+              Confirm payments
+            </button>
+            <button
+              type="button"
+              className="btn small ghost"
+              disabled={!ss}
+              onClick={() => onOpenAssign?.()}
+            >
+              Assign therapists
+            </button>
+          </div>
           <label className="staff-code-field full" style={{ display: 'block', marginBottom: 12 }}>
             <span className="label-text">
               Creator or admin code <em>*</em>
@@ -1476,6 +1433,7 @@ export default function SessionActions({
               placeholder="code"
               required
             />
+            <span className="field-hint">Required to edit or delete payment methods</span>
           </label>
           <ul className="payment-list">
             {payments.length === 0 && <li className="muted">No payment methods yet.</li>}
@@ -1541,8 +1499,8 @@ export default function SessionActions({
                         fileName={editReceiptFile?.name}
                         disabled={busy}
                         showToast={showToast}
-                        onPick={(file) => pickReceipt(file, { forEdit: true })}
-                        onClear={() => clearReceipt({ forEdit: true })}
+                        onPick={(file) => pickReceipt(file)}
+                        onClear={() => clearReceipt()}
                       />
                     )}
                     <div className="form-actions full">
@@ -1612,68 +1570,6 @@ export default function SessionActions({
               </li>
             ))}
           </ul>
-
-          <form className="session-form" onSubmit={submitCreatePayment}>
-            <p className="muted note-intro">Add how payment was made for this session.</p>
-            <label>
-              Source
-              <select value={paymentForm.source} onChange={(e) => setP('source', e.target.value)}>
-                {paymentSources.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Type
-              <select value={paymentForm.type} onChange={(e) => setP('type', e.target.value)}>
-                {paymentTypes.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Amount
-              <input
-                type="number"
-                min="1"
-                step="any"
-                value={paymentForm.amount}
-                onChange={(e) => setP('amount', e.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Status
-              <select value={paymentForm.status} onChange={(e) => setP('status', e.target.value)}>
-                {paymentStatuses.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <ReceiptImageField
-              previewUrl={receiptPreview}
-              fileName={receiptFile?.name}
-              disabled={busy}
-              showToast={showToast}
-              onPick={(file) => pickReceipt(file)}
-              onClear={() => clearReceipt()}
-            />
-            <div className="form-actions full">
-              <button
-                type="submit"
-                className="btn primary"
-                disabled={busy || !ss || !paymentAuthCode.trim()}
-              >
-                {busy ? 'Saving…' : 'Add payment'}
-              </button>
-            </div>
-          </form>
         </div>
       )}
 
