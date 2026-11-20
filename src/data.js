@@ -71,7 +71,7 @@ export const handsOptions = ['2', '4', '6']
 export const DEFAULT_AMOUNT = 35000
 export const amountOptions = [35000, 30000, 25000]
 export const clientSupportDescriptions = ['car wash', 'purchase']
-export const DEFAULT_CLIENT_SUPPORT_AMOUNT = 2000
+export const DEFAULT_CLIENT_SUPPORT_AMOUNT = 500
 export const clientSupportTypes = [
   { value: 'payin', label: 'Pay in' },
   { value: 'payout', label: 'Pay out' },

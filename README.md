@@ -44,8 +44,8 @@ Client card includes a **Zura Spa–framed phone QR** (enlarge / download / send
 Other client field edits need admin `code`/`tc` — use **Request client edit** (admin note).  
 Session notes: **Manage → Admin note**.
 
-Use **Manage → Update** for session edits; optional **Client support** (`description`, `amount`, `type`: `payin`\|`payout`, optional `notes`).  
-Omit support on update to leave the existing record unchanged.  
+Use **Manage → Update** for session edits.  
+**Client support** popup: add multiple / edit / delete via `PATCH|DELETE /pos/sessions/:ss/client_support` (default amount `500`). Omit `id` to add; include `id` to edit/delete that row. Settled support cannot be changed.  
 Sanction and client-support account ledgers live in the **zura_brain_admin** app.
 
 ## Requirements

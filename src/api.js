@@ -359,14 +359,27 @@ export function normalizeComment(c) {
 export function normalizeClientSupport(raw) {
   if (!raw || typeof raw !== 'object') return null
   const description = String(raw.description || '').trim()
-  if (!description && raw.amount == null && !raw.type) return null
+  if (!description && raw.amount == null && !raw.type && raw.id == null) return null
   const type = String(raw.type || '').trim().toLowerCase()
   return {
+    id: raw.id ?? null,
     description,
     notes: String(raw.notes || '').trim(),
     amount: parseDecimal(raw.amount),
     type: type === 'payout' || type === 'payin' ? type : type || '',
+    accountType: raw.account_type || '',
+    settled: !!raw.settled,
+    createdAt: raw.created_at || '',
   }
+}
+
+export function normalizeClientSupports(apiSession) {
+  const list = Array.isArray(apiSession?.client_supports)
+    ? apiSession.client_supports
+    : apiSession?.client_support
+      ? [apiSession.client_support]
+      : []
+  return list.map(normalizeClientSupport).filter(Boolean)
 }
 
 export function normalizeSession(apiSession, extras = {}) {
@@ -390,7 +403,8 @@ export function normalizeSession(apiSession, extras = {}) {
   const { sessionTherapists, therapists } = normalizeTherapists(apiSession, extras)
   const sessionCreatorName = therapistLabel(nestedCreator) || ''
   const sessionHistory = normalizeSessionHistory(apiSession.session_history)
-  const clientSupport = normalizeClientSupport(apiSession.client_support)
+  const clientSupports = normalizeClientSupports(apiSession)
+  const clientSupport = clientSupports[0] || null
 
   return {
     id: apiSession.id,
@@ -416,6 +430,7 @@ export function normalizeSession(apiSession, extras = {}) {
     lunezAmount: parseDecimal(apiSession.lunez_amount),
     hands: String(apiSession.hands ?? ''),
     clientSupport,
+    clientSupports,
     sessionTherapists,
     therapists,
     therapistLabel: therapists.join(', '),
@@ -569,6 +584,78 @@ export async function createPosSession({ st, client_phone, session, client_suppo
   return apiError(res, data, {
     404: 'Client or therapist not found',
     422: 'client_support requires description, amount, and type',
+  })
+}
+
+/**
+ * PATCH /pos/sessions/:ss/client_support
+ * Without `client_support.id` → create a new support.
+ * With `client_support.id` → update that support.
+ */
+export async function updatePosClientSupport({ sessionCode, ss, st, th, tc, code, client_support }) {
+  const session_code = String(sessionCode || ss || '').trim()
+  const key = encodeURIComponent(session_code)
+  const support = buildClientSupportBody(client_support)
+  if (!support) {
+    return {
+      ok: false,
+      status: 422,
+      error: 'client_support requires description, amount, and type',
+    }
+  }
+  if (client_support?.id != null && client_support.id !== '') {
+    support.id = client_support.id
+  }
+  const body = {
+    ss: session_code,
+    client_support: support,
+  }
+  if (st) body.st = String(st).trim()
+  if (th) body.th = String(th).trim()
+  if (tc) body.tc = String(tc).trim()
+  if (code) body.code = String(code).trim()
+
+  const res = await fetch(url(`/pos/sessions/${key}/client_support`), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const data = await readJson(res)
+  if (res.status === 200) return { ok: true, session: data }
+  return apiError(res, data, {
+    401: 'Not authorized',
+    403: 'Only the creating therapist can update client support',
+    404: 'Session not found',
+    422: data?.error || 'Client support is settled or invalid',
+  })
+}
+
+/**
+ * DELETE /pos/sessions/:ss/client_support
+ * Pass `id` to delete a specific support; otherwise deletes the latest.
+ */
+export async function deletePosClientSupport({ sessionCode, ss, st, th, tc, code, id }) {
+  const session_code = String(sessionCode || ss || '').trim()
+  const key = encodeURIComponent(session_code)
+  const body = { ss: session_code }
+  if (id != null && id !== '') body.id = id
+  if (st) body.st = String(st).trim()
+  if (th) body.th = String(th).trim()
+  if (tc) body.tc = String(tc).trim()
+  if (code) body.code = String(code).trim()
+
+  const res = await fetch(url(`/pos/sessions/${key}/client_support`), {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const data = await readJson(res)
+  if (res.status === 200) return { ok: true, session: data }
+  return apiError(res, data, {
+    401: 'Not authorized',
+    403: 'Only the creating therapist can delete client support',
+    404: 'Session or client support not found',
+    422: data?.error || 'Client support is settled',
   })
 }
 

@@ -16,10 +16,6 @@ import {
   paymentTypes,
   paymentStatuses,
   paymentStatusLabel,
-  clientSupportDescriptions,
-  DEFAULT_CLIENT_SUPPORT_AMOUNT,
-  clientSupportTypes,
-  DEFAULT_CLIENT_SUPPORT_TYPE,
 } from './data'
 import {
   updatePosSession,
@@ -95,16 +91,6 @@ function emptyUpdate(session) {
     start_time: toTimeOfDay(session.startTime) || '',
     end_time: toTimeOfDay(session.endTime) || '',
     hands: session.hands || '2',
-    client_support: !!session.clientSupport,
-    client_support_description:
-      session.clientSupport?.description || clientSupportDescriptions[0],
-    client_support_notes: session.clientSupport?.notes || '',
-    client_support_amount: String(
-      session.clientSupport?.amount > 0
-        ? session.clientSupport.amount
-        : DEFAULT_CLIENT_SUPPORT_AMOUNT,
-    ),
-    client_support_type: session.clientSupport?.type || DEFAULT_CLIENT_SUPPORT_TYPE,
   }
 }
 
@@ -314,6 +300,8 @@ export default function SessionActions({
   onOpenAddPayment,
   onOpenConfirmPayments,
   onOpenAssign,
+  onOpenClientSupport,
+  onOpenAddComment,
   onClose,
   showToast,
 }) {
@@ -535,27 +523,6 @@ export default function SessionActions({
       showToast('Creator staff code is required')
       return
     }
-    let client_support
-    if (updateForm.client_support) {
-      const description = String(updateForm.client_support_description || '').trim()
-      const amount = Number(updateForm.client_support_amount)
-      const type = String(updateForm.client_support_type || '').trim().toLowerCase()
-      if (!description) {
-        showToast('Client support description is required')
-        return
-      }
-      if (!(amount > 0)) {
-        showToast('Client support amount must be greater than 0')
-        return
-      }
-      if (type !== 'payin' && type !== 'payout') {
-        showToast('Client support type is required')
-        return
-      }
-      client_support = { description, amount, type }
-      const notes = String(updateForm.client_support_notes || '').trim()
-      if (notes) client_support.notes = notes
-    }
     run(async () => {
       const session_date = sessionDateKeepingCreatedTime(
         updateForm.session_date,
@@ -584,7 +551,6 @@ export default function SessionActions({
           end_time: updateForm.end_time || null,
           hands: updateForm.hands,
         },
-        ...(client_support ? { client_support } : {}),
       })
       if (!result.ok) {
         showToast(result.error)
@@ -874,17 +840,21 @@ export default function SessionActions({
               <dd>{Number(session.lunezAmount || 0).toLocaleString()}</dd>
             </div>
           ) : null}
-          {session.clientSupport ? (
-            <div className="full">
-              <dt>Client support</dt>
+          {(Array.isArray(session.clientSupports) && session.clientSupports.length
+            ? session.clientSupports
+            : session.clientSupport
+              ? [session.clientSupport]
+              : []
+          ).map((cs, csi) => (
+            <div key={cs.id || `${cs.description}-${csi}`} className="full">
+              <dt>Client support{csi > 0 ? ` ${csi + 1}` : ''}</dt>
               <dd>
-                {session.clientSupport.description} ·{' '}
-                {Number(session.clientSupport.amount || 0).toLocaleString()}
-                {session.clientSupport.type ? ` · ${session.clientSupport.type}` : ''}
-                {session.clientSupport.notes ? ` · ${session.clientSupport.notes}` : ''}
+                {cs.description} · {Number(cs.amount || 0).toLocaleString()}
+                {cs.type ? ` · ${cs.type}` : ''}
+                {cs.notes ? ` · ${cs.notes}` : ''}
               </dd>
             </div>
-          ) : null}
+          ))}
           {session.therapistLabel ? (
             <div className="full">
               <dt>Therapists</dt>
@@ -1028,100 +998,6 @@ export default function SessionActions({
             />
             <span className="field-hint">Time stays as when the session was created</span>
           </label>
-          <fieldset className="seg full">
-            <legend>Client support</legend>
-            <button
-              type="button"
-              className={updateForm.client_support ? 'active' : ''}
-              onClick={() =>
-                setUpdateForm((f) => ({
-                  ...f,
-                  client_support: true,
-                  client_support_description:
-                    f.client_support_description || clientSupportDescriptions[0],
-                  client_support_amount:
-                    f.client_support_amount || String(DEFAULT_CLIENT_SUPPORT_AMOUNT),
-                  client_support_type: f.client_support_type || DEFAULT_CLIENT_SUPPORT_TYPE,
-                }))
-              }
-            >
-              Yes
-            </button>
-            <button
-              type="button"
-              className={!updateForm.client_support ? 'active' : ''}
-              onClick={() => setUpdateForm((f) => ({ ...f, client_support: false }))}
-            >
-              No
-            </button>
-            <span className="field-hint" style={{ width: '100%' }}>
-              Yes creates or updates support on this save. No leaves existing support unchanged.
-            </span>
-          </fieldset>
-          {updateForm.client_support && (
-            <>
-              <label>
-                <span className="label-text">
-                  Description <em>*</em>
-                </span>
-                <select
-                  value={updateForm.client_support_description}
-                  onChange={(e) => setU('client_support_description', e.target.value)}
-                  required
-                >
-                  {updateForm.client_support_description &&
-                    !clientSupportDescriptions.includes(updateForm.client_support_description) && (
-                      <option value={updateForm.client_support_description}>
-                        {updateForm.client_support_description}
-                      </option>
-                    )}
-                  {clientSupportDescriptions.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span className="label-text">
-                  Amount <em>*</em>
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  step="any"
-                  value={updateForm.client_support_amount || ''}
-                  onChange={(e) => setU('client_support_amount', e.target.value)}
-                  placeholder="e.g. 2000"
-                  required
-                />
-              </label>
-              <label>
-                <span className="label-text">
-                  Type <em>*</em>
-                </span>
-                <select
-                  value={updateForm.client_support_type}
-                  onChange={(e) => setU('client_support_type', e.target.value)}
-                  required
-                >
-                  {clientSupportTypes.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="full">
-                Notes
-                <input
-                  value={updateForm.client_support_notes || ''}
-                  onChange={(e) => setU('client_support_notes', e.target.value)}
-                  placeholder="Optional — e.g. Paid from the front desk"
-                />
-              </label>
-            </>
-          )}
           <fieldset className="seg">
             <legend>Lunez</legend>
             <button
@@ -1411,6 +1287,22 @@ export default function SessionActions({
               onClick={() => onOpenConfirmPayments?.()}
             >
               Confirm payments
+            </button>
+            <button
+              type="button"
+              className="btn small primary"
+              disabled={!ss}
+              onClick={() => onOpenClientSupport?.()}
+            >
+              Client support
+            </button>
+            <button
+              type="button"
+              className="btn small primary"
+              disabled={!ss}
+              onClick={() => onOpenAddComment?.()}
+            >
+              Add comment
             </button>
             <button
               type="button"

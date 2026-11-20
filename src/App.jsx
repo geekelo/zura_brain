@@ -16,10 +16,6 @@ import {
   staffDirectory,
   paymentStatusLabel,
   whatsappTemplates,
-  clientSupportDescriptions,
-  DEFAULT_CLIENT_SUPPORT_AMOUNT,
-  clientSupportTypes,
-  DEFAULT_CLIENT_SUPPORT_TYPE,
 } from './data'
 import {
   createPosClient,
@@ -44,10 +40,14 @@ import SessionActions from './SessionActions'
 import SessionTherapists from './SessionTherapists'
 import AddPaymentModal from './AddPaymentModal'
 import ConfirmPaymentsModal from './ConfirmPaymentsModal'
+import ClientSupportModal from './ClientSupportModal'
+import AddCommentModal from './AddCommentModal'
 import IconButton, {
   IconUsers,
   IconPaymentPlus,
   IconConfirmPayment,
+  IconClientSupport,
+  IconComment,
 } from './IconButton'
 import './App.css'
 
@@ -199,11 +199,6 @@ function emptyForm() {
     lunezAmount: String(DEFAULT_LUNEZ_AMOUNT),
     hands: '2',
     staffCode: '',
-    clientSupport: false,
-    clientSupportDescription: clientSupportDescriptions[0],
-    clientSupportNotes: '',
-    clientSupportAmount: String(DEFAULT_CLIENT_SUPPORT_AMOUNT),
-    clientSupportType: DEFAULT_CLIENT_SUPPORT_TYPE,
   }
 }
 
@@ -268,6 +263,8 @@ export default function App() {
   const [assignSession, setAssignSession] = useState(null)
   const [addPaymentSession, setAddPaymentSession] = useState(null)
   const [confirmPaymentsSession, setConfirmPaymentsSession] = useState(null)
+  const [clientSupportSession, setClientSupportSession] = useState(null)
+  const [addCommentSession, setAddCommentSession] = useState(null)
   const [receiptLightbox, setReceiptLightbox] = useState('')
   const [autoRefreshSessions, setAutoRefreshSessions] = useState(false)
 
@@ -440,6 +437,8 @@ export default function App() {
     setAssignSession(null)
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
     setNoteSent(false)
     setSearching(true)
 
@@ -483,6 +482,8 @@ export default function App() {
     setAssignSession(null)
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
     setClientForm(emptyClientForm())
     setPanel('create')
   }
@@ -581,6 +582,8 @@ export default function App() {
     setAssignSession(null)
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
     setNote('')
     setNoteSent(false)
     const key = clientKey(c)
@@ -600,6 +603,8 @@ export default function App() {
     setAssignSession(null)
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
     setListMode('client')
     await refreshSessions({ phone: client.phone })
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
@@ -611,6 +616,8 @@ export default function App() {
     setAssignSession(null)
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
     setForm(emptyForm())
     setPanel('session')
   }
@@ -720,36 +727,10 @@ export default function App() {
         sessionPayload.lunez_amount =
           Number.isFinite(amt) && amt > 0 ? amt : DEFAULT_LUNEZ_AMOUNT_YES
       }
-      let client_support
-      if (form.clientSupport) {
-        const desc = String(form.clientSupportDescription || '').trim()
-        const supportAmt = Number(form.clientSupportAmount)
-        if (!desc) {
-          showToast('Client support description is required')
-          return
-        }
-        if (!(supportAmt > 0)) {
-          showToast('Client support amount must be greater than 0')
-          return
-        }
-        const type = String(form.clientSupportType || '').trim().toLowerCase()
-        if (type !== 'payin' && type !== 'payout') {
-          showToast('Client support type is required')
-          return
-        }
-        client_support = {
-          description: desc,
-          amount: supportAmt,
-          type,
-        }
-        const notes = String(form.clientSupportNotes || '').trim()
-        if (notes) client_support.notes = notes
-      }
       const result = await createPosSession({
         st,
         client_phone: client.phone,
         session: sessionPayload,
-        client_support,
       })
 
       if (!result.ok) {
@@ -850,6 +831,12 @@ export default function App() {
     setConfirmPaymentsSession((cur) =>
       cur && code && cur.sessionCode === code ? next : cur,
     )
+    setClientSupportSession((cur) =>
+      cur && code && cur.sessionCode === code ? next : cur,
+    )
+    setAddCommentSession((cur) =>
+      cur && code && cur.sessionCode === code ? next : cur,
+    )
   }
 
   function applyPaymentMethods(sessionCode, nextList) {
@@ -864,6 +851,8 @@ export default function App() {
     setAssignSession(patch)
     setAddPaymentSession(patch)
     setConfirmPaymentsSession(patch)
+    setClientSupportSession(patch)
+    setAddCommentSession(patch)
   }
 
   function removeSavedSession(sessionCode) {
@@ -949,6 +938,8 @@ export default function App() {
     setPanel(null)
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
     setAssignSession(s)
   }
 
@@ -956,6 +947,8 @@ export default function App() {
     setPanel(null)
     setAssignSession(null)
     setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
     setAddPaymentSession(s)
   }
 
@@ -963,7 +956,27 @@ export default function App() {
     setPanel(null)
     setAssignSession(null)
     setAddPaymentSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
     setConfirmPaymentsSession(s)
+  }
+
+  function openClientSupport(s) {
+    setPanel(null)
+    setAssignSession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
+    setAddCommentSession(null)
+    setClientSupportSession(s)
+  }
+
+  function openAddComment(s) {
+    setPanel(null)
+    setAssignSession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(s)
   }
 
   function openManageSession(s) {
@@ -971,6 +984,8 @@ export default function App() {
     setAssignSession(null)
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
     setActiveSession(s)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1615,90 +1630,6 @@ export default function App() {
                   ))}
                 </select>
               </label>
-              <fieldset className="seg full">
-                <legend>Client support</legend>
-                <button
-                  type="button"
-                  className={form.clientSupport ? 'active' : ''}
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      clientSupport: true,
-                      clientSupportDescription:
-                        f.clientSupportDescription || clientSupportDescriptions[0],
-                      clientSupportAmount:
-                        f.clientSupportAmount || String(DEFAULT_CLIENT_SUPPORT_AMOUNT),
-                    }))
-                  }
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  className={!form.clientSupport ? 'active' : ''}
-                  onClick={() => setForm((f) => ({ ...f, clientSupport: false }))}
-                >
-                  No
-                </button>
-              </fieldset>
-              {form.clientSupport && (
-                <>
-                  <label>
-                    <span className="label-text">
-                      Support description <em>*</em>
-                    </span>
-                    <select
-                      value={form.clientSupportDescription}
-                      onChange={(e) => updateForm('clientSupportDescription', e.target.value)}
-                      required
-                    >
-                      {clientSupportDescriptions.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span className="label-text">
-                      Support amount <em>*</em>
-                    </span>
-                    <input
-                      type="number"
-                      min="1"
-                      step="any"
-                      value={form.clientSupportAmount}
-                      onChange={(e) => updateForm('clientSupportAmount', e.target.value)}
-                      placeholder="e.g. 2000"
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span className="label-text">
-                      Support type <em>*</em>
-                    </span>
-                    <select
-                      value={form.clientSupportType}
-                      onChange={(e) => updateForm('clientSupportType', e.target.value)}
-                      required
-                    >
-                      {clientSupportTypes.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="full">
-                    Support notes
-                    <input
-                      value={form.clientSupportNotes}
-                      onChange={(e) => updateForm('clientSupportNotes', e.target.value)}
-                      placeholder="Optional — e.g. Paid from the front desk"
-                    />
-                  </label>
-                </>
-              )}
               <label className="staff-code-field full">
                 <span className="label-text">
                   Staff unique code <em>*</em>
@@ -1738,6 +1669,8 @@ export default function App() {
             onOpenAddPayment={() => openAddPayment(activeSession)}
             onOpenConfirmPayments={() => openConfirmPayments(activeSession)}
             onOpenAssign={() => openAssignSession(activeSession)}
+            onOpenClientSupport={() => openClientSupport(activeSession)}
+            onOpenAddComment={() => openAddComment(activeSession)}
           />
         )}
 
@@ -2079,13 +2012,17 @@ export default function App() {
                                 Lunez {formatMoney(s.lunezAmount || 0)}
                               </span>
                             ) : null}
-                            {s.clientSupport ? (
-                              <span className="muted">
-                                Support {s.clientSupport.description}{' '}
-                                {formatMoney(s.clientSupport.amount)}
-                                {s.clientSupport.type ? ` · ${s.clientSupport.type}` : ''}
+                            {(Array.isArray(s.clientSupports) && s.clientSupports.length
+                              ? s.clientSupports
+                              : s.clientSupport
+                                ? [s.clientSupport]
+                                : []
+                            ).map((cs, csi) => (
+                              <span key={cs.id || `${cs.description}-${csi}`} className="muted">
+                                Support {cs.description} {formatMoney(cs.amount)}
+                                {cs.type ? ` · ${cs.type}` : ''}
                               </span>
-                            ) : null}
+                            ))}
                           </div>
                         </td>
                         <td>
@@ -2144,6 +2081,22 @@ export default function App() {
                               onClick={() => openAddPayment(s)}
                             >
                               <IconPaymentPlus />
+                            </IconButton>
+                            <IconButton
+                              label="Client support"
+                              variant="primary"
+                              disabled={!s.sessionCode}
+                              onClick={() => openClientSupport(s)}
+                            >
+                              <IconClientSupport />
+                            </IconButton>
+                            <IconButton
+                              label="Add comment"
+                              variant="primary"
+                              disabled={!s.sessionCode}
+                              onClick={() => openAddComment(s)}
+                            >
+                              <IconComment />
                             </IconButton>
                             <button
                               type="button"
@@ -2246,13 +2199,17 @@ export default function App() {
                         Lunez {formatMoney(s.lunezAmount || 0)}
                       </p>
                     ) : null}
-                    {s.clientSupport ? (
-                      <p className="session-card-meta">
-                        Support {s.clientSupport.description}{' '}
-                        {formatMoney(s.clientSupport.amount)}
-                        {s.clientSupport.type ? ` · ${s.clientSupport.type}` : ''}
+                    {(Array.isArray(s.clientSupports) && s.clientSupports.length
+                      ? s.clientSupports
+                      : s.clientSupport
+                        ? [s.clientSupport]
+                        : []
+                    ).map((cs, csi) => (
+                      <p key={cs.id || `${cs.description}-${csi}`} className="session-card-meta">
+                        Support {cs.description} {formatMoney(cs.amount)}
+                        {cs.type ? ` · ${cs.type}` : ''}
                       </p>
-                    ) : null}
+                    ))}
                     <div className="session-card-payments">
                       <span className="session-card-meta">Payments</span>
                       <PaymentMethodsDisplay
@@ -2304,6 +2261,22 @@ export default function App() {
                         onClick={() => openAddPayment(s)}
                       >
                         <IconPaymentPlus />
+                      </IconButton>
+                      <IconButton
+                        label="Client support"
+                        variant="primary"
+                        disabled={!s.sessionCode}
+                        onClick={() => openClientSupport(s)}
+                      >
+                        <IconClientSupport />
+                      </IconButton>
+                      <IconButton
+                        label="Add comment"
+                        variant="primary"
+                        disabled={!s.sessionCode}
+                        onClick={() => openAddComment(s)}
+                      >
+                        <IconComment />
                       </IconButton>
                       <button
                         type="button"
@@ -2379,6 +2352,30 @@ export default function App() {
           }}
           onPaymentUpdated={(nextList) => {
             applyPaymentMethods(confirmPaymentsSession.sessionCode, nextList)
+            refreshSessions()
+          }}
+        />
+      )}
+
+      {clientSupportSession && (
+        <ClientSupportModal
+          session={clientSupportSession}
+          showToast={showToast}
+          onClose={() => setClientSupportSession(null)}
+          onUpdated={(row) => {
+            upsertSavedSession(row)
+            refreshSessions()
+          }}
+        />
+      )}
+
+      {addCommentSession && (
+        <AddCommentModal
+          session={addCommentSession}
+          showToast={showToast}
+          onClose={() => setAddCommentSession(null)}
+          onUpdated={(row) => {
+            upsertSavedSession(row)
             refreshSessions()
           }}
         />
