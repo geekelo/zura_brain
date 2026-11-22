@@ -306,11 +306,17 @@ export default function SessionActions({
   onOpenDispute,
   onClose,
   showToast,
+  initialTab = 'update',
+  initialStatus = '',
 }) {
-  const [tab, setTab] = useState('update') // update | status | times | comments | payments | note | delete
+  const [tab, setTab] = useState(initialTab) // update | status | times | comments | payments | note | delete
   const [busy, setBusy] = useState(false)
   const [updateForm, setUpdateForm] = useState(() => emptyUpdate(session))
-  const [statusForm, setStatusForm] = useState({ th: '', tc: '', status: session.status || 'pending' })
+  const [statusForm, setStatusForm] = useState({
+    th: '',
+    tc: '',
+    status: initialStatus || session.status || 'pending',
+  })
   const [timesForm, setTimesForm] = useState(() => ({
     start_time: toTimeOfDay(session.startTime) || '',
     end_time: toTimeOfDay(session.endTime) || '',

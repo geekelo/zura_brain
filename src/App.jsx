@@ -87,8 +87,260 @@ function formatDateTime(iso) {
   })
 }
 
+function formatSessionDay(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function shortClock(value) {
+  if (value == null || value === '') return ''
+  const text = String(value)
+  if (!text.includes('T') && !text.includes('-')) {
+    const match = text.match(/(\d{1,2}):(\d{2})/)
+    if (match) return `${match[1].padStart(2, '0')}:${match[2]}`
+  }
+  const d = new Date(text)
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  }
+  const match = text.match(/(\d{1,2}):(\d{2})/)
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : ''
+}
+
+function sessionClockRange(session) {
+  const start = shortClock(session.startTime) || shortClock(session.dateTime) || '—'
+  const end = shortClock(session.endTime) || '—'
+  return `${start} – ${end}`
+}
+
+function DeskGlyph({ children }) {
+  return (
+    <svg className="desk-glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {children}
+    </svg>
+  )
+}
+
 function formatMoney(n) {
   return `₦${Number(n).toLocaleString()}`
+}
+
+function CardIcon({ children }) {
+  return (
+    <svg className="session-card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {children}
+    </svg>
+  )
+}
+
+function IconCard({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="5.5" width="18" height="13" rx="2.2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3 9.5h18" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M7 14.5h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function SessionMobileCard({
+  session: s,
+  index,
+  active,
+  selectedClient,
+  onAssign,
+  onComplete,
+  onConfirm,
+  onSupport,
+  onComment,
+  onManage,
+  onOpenReceipt,
+}) {
+  const cycle = sessionCycleDisplay(s)
+  const supports = Array.isArray(s.clientSupports) && s.clientSupports.length
+    ? s.clientSupports
+    : s.clientSupport
+      ? [s.clientSupport]
+      : []
+  const comments = Array.isArray(s.comments) ? s.comments : []
+  const openComments = comments.filter((c) => !c.resolved).length
+  const history = sessionHistoryTrueLabels(s.sessionHistory)
+  const service = [s.sessionType, s.massageType].filter(Boolean).join(' · ') || '—'
+  const cycleBits = [cycle.line, s.hands ? `${s.hands} hands` : ''].filter(Boolean).join('  |  ')
+  const clientCycle = clientCycleLine(s, selectedClient)
+
+  return (
+    <li className={`session-card${active ? ' row-active' : ''}`}>
+      <div className="session-card-hero">
+        <div className="session-card-brandbar">
+          <span className="session-card-index">#{index + 1}</span>
+          <span className="session-card-brand">
+            <span className="lotus sm" aria-hidden="true">❀</span>
+            Zura Spa
+          </span>
+        </div>
+        <strong className="session-card-title">
+          {s.clientName || s.clientPhone || 'Unnamed client'}
+        </strong>
+        {s.clientPhone ? (
+          <p className="session-card-line">
+            <CardIcon>
+              <path d="M7 4.5h2.2l1.1 2.4-1.3 1a12 12 0 0 0 5.1 5.1l1-1.3 2.4 1.1V15a1.5 1.5 0 0 1-1.6 1.5A13.5 13.5 0 0 1 5.5 6.1 1.5 1.5 0 0 1 7 4.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+            </CardIcon>
+            {s.clientPhone}
+          </p>
+        ) : null}
+        {clientCycle ? <p className="session-card-line muted">{clientCycle}</p> : null}
+        <p className="session-card-line">
+          <CardIcon>
+            <rect x="4" y="5.5" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M4 9.5h16M8 3.5v3M16 3.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </CardIcon>
+          {formatDateTime(s.dateTime)}
+        </p>
+        <div className="session-card-chips">
+          <SessionStatusBadge status={s.status} />
+          {history.map((label) => (
+            <span key={label} className="history-flag">{label}</span>
+          ))}
+          {comments.length > 0 ? (
+            <span className="comments-flag">
+              {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
+              {openComments ? ` · ${openComments} open` : ' · all resolved'}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="session-card-body">
+        <section className="session-card-section">
+          <span className="session-card-glyph" aria-hidden="true"><span className="lotus sm">❀</span></span>
+          <div>
+            <h3>Service Details</h3>
+            <p>{service}</p>
+            <p>
+              {cycleBits}
+              {cycle.offCycle ? ' · Off cycle' : ''}
+            </p>
+          </div>
+        </section>
+
+        <section className="session-card-section session-card-timing">
+          <span className="session-card-glyph" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7" />
+              <path d="M12 8v4.5l3 2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+            </svg>
+          </span>
+          <div>
+            <h3>Timing</h3>
+            <div className="session-card-times">
+              <p><span>Start</span><strong>{s.startTime || '—'}</strong></p>
+              <p><span>End</span><strong>{s.endTime || '—'}</strong></p>
+              <p><span>Duration</span><strong>{formatDuration(s.duration)}</strong></p>
+            </div>
+          </div>
+        </section>
+
+        <section className="session-card-section">
+          <span className="session-card-glyph" aria-hidden="true"><IconUsers size={18} /></span>
+          <div>
+            <h3>Therapists</h3>
+            <p>
+              {s.therapistLabel || formatSessionTherapistsLabel(s.sessionTherapists) || '—'}
+            </p>
+          </div>
+        </section>
+
+        <section className="session-card-section">
+          <span className="session-card-glyph" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.7" />
+              <path d="M6 19a6 6 0 0 1 12 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+            </svg>
+          </span>
+          <div>
+            <h3>Created by</h3>
+            <p>{s.sessionCreatorName || '—'}</p>
+          </div>
+        </section>
+
+        <section className="session-card-section">
+          <span className="session-card-glyph" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <ellipse cx="12" cy="7" rx="7" ry="3" stroke="currentColor" strokeWidth="1.7" />
+              <path d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5" stroke="currentColor" strokeWidth="1.7" />
+            </svg>
+          </span>
+          <div>
+            <h3>Pricing</h3>
+            <p className="session-card-price">
+              <strong>{formatMoney(s.amount)}</strong>
+              {s.lunez ? <span>Lunez {formatMoney(s.lunezAmount || 0)}</span> : null}
+            </p>
+            {supports.map((cs, csi) => (
+              <p key={cs.id || `${cs.description}-${csi}`}>
+                Support {cs.description} {formatMoney(cs.amount)}
+                {cs.type ? ` · ${cs.type}` : ''}
+              </p>
+            ))}
+          </div>
+        </section>
+
+        <section className="session-card-section session-card-pay">
+          <div className="session-card-pay-head">
+            <span className="session-card-glyph" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M3 10h18" stroke="currentColor" strokeWidth="1.7" />
+              </svg>
+            </span>
+            <h3>Payments</h3>
+          </div>
+          <PaymentMethodsDisplay
+            paymentMethods={s.paymentMethods}
+            onOpenReceipt={onOpenReceipt}
+          />
+        </section>
+      </div>
+
+      <div className="session-card-actions">
+        <div className="session-action-grid">
+          <button type="button" className="session-action-tile" aria-label="Assign Therapist" disabled={!s.sessionCode} onClick={() => onAssign(s)}>
+            <IconUsers size={22} />
+          </button>
+          <button
+            type="button"
+            className="session-action-tile"
+            aria-label="Mark Complete"
+            disabled={!s.sessionCode || String(s.status || '').toLowerCase() === 'completed'}
+            onClick={() => onComplete(s)}
+          >
+            <IconConfirmPayment size={22} />
+          </button>
+          <button type="button" className="session-action-tile" aria-label="Confirm Payment" disabled={!s.sessionCode} onClick={() => onConfirm(s)}>
+            <IconCard size={22} />
+          </button>
+          <button type="button" className="session-action-tile" aria-label="Client support" disabled={!s.sessionCode} onClick={() => onSupport(s)}>
+            <IconClientSupport size={22} />
+          </button>
+          <button type="button" className="session-action-tile" aria-label="Add Comment" disabled={!s.sessionCode} onClick={() => onComment(s)}>
+            <IconComment size={22} />
+          </button>
+        </div>
+        <button
+          type="button"
+          className="btn primary session-manage-btn"
+          disabled={!s.sessionCode}
+          onClick={() => onManage(s)}
+        >
+          <span aria-hidden="true">⚙</span>
+          Manage
+        </button>
+      </div>
+    </li>
+  )
 }
 
 function PaymentMethodsDisplay({ paymentMethods, onOpenReceipt }) {
@@ -127,11 +379,50 @@ function PaymentMethodsDisplay({ paymentMethods, onOpenReceipt }) {
   )
 }
 
-/** Always show cycle progress over 4, never API cycle_length as denominator. */
-function formatSessionCycle(s) {
-  const n = s?.cycleNum
-  if (n == null || n === '') return 'Cycle — · —/4'
-  return `Cycle ${n} · ${n}/4`
+function formatLengthOver4(length) {
+  if (length == null || length === '') return ''
+  const text = String(length).trim()
+  if (!text) return ''
+  if (text.includes('/') || text.toLowerCase() === 'bonus') return text
+  return `${text}/4`
+}
+
+function formatCycleAndLength(cycle, length) {
+  const cycleText = cycle == null || cycle === '' ? 'Cycle —' : `Cycle ${cycle}`
+  const lengthText = formatLengthOver4(length)
+  if (!lengthText) return cycleText
+  return `${cycleText} · ${lengthText}`
+}
+
+function clientCycleLine(session, selectedClient) {
+  const sameClient = digitsOnly(selectedClient?.phone) !== ''
+    && digitsOnly(selectedClient?.phone) === digitsOnly(session?.clientPhone)
+  const cycle = session?.clientCycle != null
+    ? session.clientCycle
+    : sameClient
+      ? (selectedClient.cycle ?? selectedClient.cycleCurrent)
+      : null
+  const length = session?.clientCycleLength != null && session?.clientCycleLength !== ''
+    ? session.clientCycleLength
+    : sameClient
+      ? (selectedClient.cycle_length ?? selectedClient.cycleTotal)
+      : null
+  if ((cycle == null || cycle === '') && (length == null || length === '')) return null
+  return formatCycleAndLength(cycle, length)
+}
+
+function sessionCycleDisplay(session) {
+  const cycleText = session?.cycleNum == null || session?.cycleNum === ''
+    ? 'Cycle —'
+    : `Cycle ${session.cycleNum}`
+  const lengthEmpty = session?.cycleLength == null || session?.cycleLength === ''
+  if (lengthEmpty && session?.offCycle) {
+    return { line: cycleText, offCycle: true }
+  }
+  return {
+    line: lengthEmpty ? cycleText : `${cycleText} · ${formatLengthOver4(session.cycleLength)}`,
+    offCycle: !!session?.offCycle,
+  }
 }
 
 function isEvenCycle(value) {
@@ -262,6 +553,7 @@ export default function App() {
   const [savingSession, setSavingSession] = useState(false)
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [activeSession, setActiveSession] = useState(null)
+  const [manageFocus, setManageFocus] = useState({ tab: 'update', status: '' })
   const [assignSession, setAssignSession] = useState(null)
   const [addPaymentSession, setAddPaymentSession] = useState(null)
   const [confirmPaymentsSession, setConfirmPaymentsSession] = useState(null)
@@ -1030,7 +1322,7 @@ export default function App() {
     setDisputeSession(s)
   }
 
-  function openManageSession(s) {
+  function openManageSession(s, focus = {}) {
     setPanel(null)
     setAssignSession(null)
     setAddPaymentSession(null)
@@ -1038,6 +1330,10 @@ export default function App() {
     setClientSupportSession(null)
     setAddCommentSession(null)
     setDisputeSession(null)
+    setManageFocus({
+      tab: focus.tab || 'update',
+      status: focus.status || '',
+    })
     setActiveSession(s)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1410,6 +1706,12 @@ export default function App() {
                       {client.sex && <span className="badge soft">{client.sex}</span>}
                     </div>
                     <p className="phone">{client.phone}</p>
+                    <p className="client-meta-line">
+                      {formatCycleAndLength(
+                        client.cycle ?? client.cycleCurrent,
+                        client.cycle_length ?? client.cycleTotal,
+                      )}
+                    </p>
                     {client.other_phones && (
                       <p className="phone other-phones">Other: {client.other_phones}</p>
                     )}
@@ -1443,7 +1745,7 @@ export default function App() {
                     <span className="metric-label">Cycle</span>
                     <strong>{client.cycle ?? client.cycleCurrent ?? 0}</strong>
                     <p>
-                      Cycle length {(client.cycle ?? client.cycleCurrent ?? 0)}/4
+                      Length {formatLengthOver4(client.cycle_length ?? client.cycleTotal) || '—'}
                     </p>
                   </div>
                   <div className="metric">
@@ -1723,10 +2025,12 @@ export default function App() {
 
         {activeSession && (
           <SessionActions
-            key={activeSession.sessionCode || 'session'}
+            key={`${activeSession.sessionCode || 'session'}-${manageFocus.tab}-${manageFocus.status}`}
             session={activeSession}
             clientName={activeSession.clientName || client?.name}
             showToast={showToast}
+            initialTab={manageFocus.tab}
+            initialStatus={manageFocus.status}
             onClose={() => setActiveSession(null)}
             onUpdated={upsertSavedSession}
             onDeleted={removeSavedSession}
@@ -1991,14 +2295,14 @@ export default function App() {
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th>When</th>
+                      <th>Date & Time</th>
                       <th>Client</th>
-                      <th>Details</th>
+                      <th>Service & Session Details</th>
                       <th>Therapists</th>
                       <th>Amount</th>
                       <th>Payments</th>
                       <th>Status</th>
-                      <th></th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2012,10 +2316,25 @@ export default function App() {
                             : ''
                         }
                       >
-                        <td>{i + 1}</td>
                         <td>
-                          <div className="cell-stack">
-                            <strong>{formatDateTime(s.dateTime)}</strong>
+                          <span className="session-index">{i + 1}</span>
+                        </td>
+                        <td>
+                          <div className="cell-stack desk-stack">
+                            <span className="desk-line strong">
+                              <DeskGlyph>
+                                <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                                <path d="M4 9h16M8 3.5v3M16 3.5v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              </DeskGlyph>
+                              {formatSessionDay(s.dateTime)}
+                            </span>
+                            <span className="desk-line">
+                              <DeskGlyph>
+                                <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                                <path d="M12 8v4.5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              </DeskGlyph>
+                              {sessionClockRange(s)}
+                            </span>
                             {sessionHistoryTrueLabels(s.sessionHistory).length > 0 && (
                               <span className="session-history-flags">
                                 {sessionHistoryTrueLabels(s.sessionHistory).map((label) => (
@@ -2037,60 +2356,98 @@ export default function App() {
                           </div>
                         </td>
                         <td>
-                          <div className="cell-stack">
-                            <strong>{s.clientName || '—'}</strong>
-                            {s.clientPhone && <span className="muted">{s.clientPhone}</span>}
+                          <div className="cell-stack desk-stack">
+                            <span className="desk-line strong">
+                              <DeskGlyph>
+                                <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
+                                <path d="M6 19a6 6 0 0 1 12 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              </DeskGlyph>
+                              {s.clientName || '—'}
+                            </span>
+                            {s.clientPhone ? (
+                              <span className="desk-line">
+                                <DeskGlyph>
+                                  <path d="M7 4.5h2.2l1.1 2.4-1.3 1a12 12 0 0 0 5.1 5.1l1-1.3 2.4 1.1V15a1.5 1.5 0 0 1-1.6 1.5A13.5 13.5 0 0 1 5.5 6.1 1.5 1.5 0 0 1 7 4.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                                </DeskGlyph>
+                                {s.clientPhone}
+                              </span>
+                            ) : null}
+                            {clientCycleLine(s, client) ? (
+                              <span className="desk-line">{clientCycleLine(s, client)}</span>
+                            ) : null}
                           </div>
                         </td>
                         <td>
-                          <div className="cell-stack session-details-cell">
-                            <strong>
-                              {[s.sessionType, s.massageType].filter(Boolean).join(' · ') ||
-                                '—'}
-                            </strong>
-                            <span className="muted">{formatSessionCycle(s)}</span>
-                            {s.offCycle ? <span className="muted">Off cycle</span> : null}
+                          <div className="cell-stack desk-stack session-details-cell">
+                            <span className="desk-line strong">
+                              <DeskGlyph>
+                                <path d="M12 4c2 2.4 3 4.2 3 6.2a3 3 0 1 1-6 0C9 8.2 10 6.4 12 4Z" stroke="currentColor" strokeWidth="1.7" />
+                                <path d="M8 14.5c1.2 1.6 2.5 2.5 4 2.5s2.8-.9 4-2.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                              </DeskGlyph>
+                              {[s.sessionType, s.massageType].filter(Boolean).join(' · ') || '—'}
+                            </span>
+                            <span className="desk-line">
+                              {sessionCycleDisplay(s).line}
+                              {sessionCycleDisplay(s).offCycle ? ' · Off cycle' : ''}
+                            </span>
                             {s.hands ? (
-                              <span className="muted">{s.hands} hands</span>
+                              <span className="desk-line">
+                                <DeskGlyph>
+                                  <path d="M8 14V8.5a1.5 1.5 0 0 1 3 0V13M11 10.5V8a1.4 1.4 0 0 1 2.8 0V13M13.8 11V9.2a1.3 1.3 0 0 1 2.6 0V14c0 2.4-1.6 4-4.2 4-2 0-3.5-1.2-4.2-2.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                                </DeskGlyph>
+                                {s.hands} hands
+                              </span>
                             ) : null}
-                            <span className="muted">
-                              Start {s.startTime || '—'}
-                            </span>
-                            <span className="muted">
-                              End {s.endTime || '—'}
-                            </span>
-                            <span className="muted session-duration">
+                            <span className="desk-line">
+                              <DeskGlyph>
+                                <path d="M8 4h8M12 4v6l4 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                                <path d="M7 20h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              </DeskGlyph>
                               Duration {formatDuration(s.duration)}
                             </span>
                             {s.sessionCreatorName ? (
-                              <span className="muted">Created by {s.sessionCreatorName}</span>
+                              <span className="desk-line">
+                                <DeskGlyph>
+                                  <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
+                                  <path d="M6 19a6 6 0 0 1 12 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                                </DeskGlyph>
+                                Created by {s.sessionCreatorName}
+                              </span>
                             ) : null}
                           </div>
                         </td>
                         <td>
-                          <div className="cell-stack">
-                            <span>
-                              {s.therapistLabel ||
-                                formatSessionTherapistsLabel(s.sessionTherapists) ||
-                                '—'}
-                            </span>
-                            <IconButton
-                              label="Assign therapists"
-                              variant="primary"
-                              disabled={!s.sessionCode}
-                              onClick={() => openAssignSession(s)}
-                            >
-                              <IconUsers />
-                            </IconButton>
+                          <div className="cell-stack desk-stack">
+                            {(s.therapistLabel || formatSessionTherapistsLabel(s.sessionTherapists) || '—')
+                              .split(',')
+                              .map((name) => name.trim())
+                              .filter(Boolean)
+                              .map((name, nameIndex) => (
+                                <span key={`${name}-${nameIndex}`} className="desk-line">
+                                  {nameIndex === 0 ? (
+                                    <DeskGlyph>
+                                      <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
+                                      <path d="M6 19a6 6 0 0 1 12 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                                    </DeskGlyph>
+                                  ) : (
+                                    <span className="desk-glyph" />
+                                  )}
+                                  {name}
+                                </span>
+                              ))}
                           </div>
                         </td>
                         <td>
-                          <div className="cell-stack">
-                            <strong>{formatMoney(s.amount)}</strong>
+                          <div className="cell-stack desk-stack">
+                            <span className="desk-line strong">
+                              <DeskGlyph>
+                                <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                                <path d="M4 10h16" stroke="currentColor" strokeWidth="1.8" />
+                              </DeskGlyph>
+                              {formatMoney(s.amount)}
+                            </span>
                             {s.lunez ? (
-                              <span className="muted">
-                                Lunez {formatMoney(s.lunezAmount || 0)}
-                              </span>
+                              <span className="desk-line">Lunez {formatMoney(s.lunezAmount || 0)}</span>
                             ) : null}
                             {(Array.isArray(s.clientSupports) && s.clientSupports.length
                               ? s.clientSupports
@@ -2098,7 +2455,7 @@ export default function App() {
                                 ? [s.clientSupport]
                                 : []
                             ).map((cs, csi) => (
-                              <span key={cs.id || `${cs.description}-${csi}`} className="muted">
+                              <span key={cs.id || `${cs.description}-${csi}`} className="desk-line">
                                 Support {cs.description} {formatMoney(cs.amount)}
                                 {cs.type ? ` · ${cs.type}` : ''}
                               </span>
@@ -2115,76 +2472,86 @@ export default function App() {
                           <SessionStatusBadge status={s.status} />
                         </td>
                         <td className="actions-cell">
-                          <div className="session-row-actions">
-                            {sessionTimeControls(s).showStart && (
-                              <button
-                                type="button"
-                                className="btn small primary"
+                          <div className="desk-actions">
+                            <div className="desk-action-grid">
+                              {sessionTimeControls(s).showStart && (
+                                <button
+                                  type="button"
+                                  className="desk-text-btn"
+                                  disabled={!s.sessionCode}
+                                  onClick={() => startSavedSession(s)}
+                                >
+                                  Start
+                                </button>
+                              )}
+                              {sessionTimeControls(s).showEnd && (
+                                <button
+                                  type="button"
+                                  className="desk-text-btn"
+                                  disabled={!s.sessionCode}
+                                  onClick={() => endSavedSession(s)}
+                                >
+                                  End
+                                </button>
+                              )}
+                              <IconButton
+                                label="Assign therapists"
+                                variant="primary"
                                 disabled={!s.sessionCode}
-                                onClick={() => startSavedSession(s)}
+                                onClick={() => openAssignSession(s)}
                               >
-                                Start
-                              </button>
-                            )}
-                            {sessionTimeControls(s).showEnd && (
-                              <button
-                                type="button"
-                                className="btn small primary"
+                                <IconUsers />
+                              </IconButton>
+                              <IconButton
+                                label="Confirm payments"
+                                variant="primary"
                                 disabled={!s.sessionCode}
-                                onClick={() => endSavedSession(s)}
+                                onClick={() => openConfirmPayments(s)}
                               >
-                                End
-                              </button>
-                            )}
-                            <IconButton
-                              label="Confirm payments"
-                              variant="primary"
-                              disabled={!s.sessionCode}
-                              onClick={() => openConfirmPayments(s)}
-                            >
-                              <IconConfirmPayment />
-                            </IconButton>
-                            <IconButton
-                              label="Add payment"
-                              variant="primary"
-                              disabled={!s.sessionCode}
-                              onClick={() => openAddPayment(s)}
-                            >
-                              <IconPaymentPlus />
-                            </IconButton>
-                            <IconButton
-                              label="Client support"
-                              variant="primary"
-                              disabled={!s.sessionCode}
-                              onClick={() => openClientSupport(s)}
-                            >
-                              <IconClientSupport />
-                            </IconButton>
-                            <IconButton
-                              label="Add comment"
-                              variant="primary"
-                              disabled={!s.sessionCode}
-                              onClick={() => openAddComment(s)}
-                            >
-                              <IconComment />
-                            </IconButton>
-                            {s.sessionHistory?.disputed ? (
-                              <button
-                                type="button"
-                                className="btn small primary"
+                                <IconConfirmPayment />
+                              </IconButton>
+                              <IconButton
+                                label="Add payment"
+                                variant="primary"
                                 disabled={!s.sessionCode}
-                                onClick={() => openDispute(s)}
+                                onClick={() => openAddPayment(s)}
                               >
-                                Dispute
-                              </button>
-                            ) : null}
+                                <IconPaymentPlus />
+                              </IconButton>
+                              <IconButton
+                                label="Client support"
+                                variant="primary"
+                                disabled={!s.sessionCode}
+                                onClick={() => openClientSupport(s)}
+                              >
+                                <IconClientSupport />
+                              </IconButton>
+                              <IconButton
+                                label="Add comment"
+                                variant="primary"
+                                disabled={!s.sessionCode}
+                                onClick={() => openAddComment(s)}
+                              >
+                                <IconComment />
+                              </IconButton>
+                              {s.sessionHistory?.disputed ? (
+                                <button
+                                  type="button"
+                                  className="desk-text-btn"
+                                  disabled={!s.sessionCode}
+                                  onClick={() => openDispute(s)}
+                                >
+                                  Dispute
+                                </button>
+                              ) : null}
+                            </div>
                             <button
                               type="button"
-                              className="btn small ghost"
+                              className="desk-manage"
                               disabled={!s.sessionCode}
-                              title="Manage session"
                               onClick={() => openManageSession(s)}
                             >
+                              <span aria-hidden="true">⚙</span>
                               Manage
                             </button>
                           </div>
@@ -2196,182 +2563,30 @@ export default function App() {
               </div>
 
               <ul className="session-cards">
-                {filteredSaved.map((s, i) => {
-                  const timeBtns = sessionTimeControls(s)
-                  return (
-                  <li
+                {filteredSaved.map((s, i) => (
+                  <SessionMobileCard
                     key={s.sessionCode || `card-${i}`}
-                    className={`session-card ${
-                      activeSession?.sessionCode &&
-                      activeSession.sessionCode === s.sessionCode
-                        ? 'row-active'
-                        : ''
-                    }`}
-                  >
-                    <div className="session-card-top">
-                      <span className="session-card-index">#{i + 1}</span>
-                      <SessionStatusBadge status={s.status} />
-                    </div>
-                    <strong className="session-card-title">
-                      {s.clientName || s.clientPhone || 'Unnamed client'}
-                    </strong>
-                    {s.clientName && s.clientPhone && (
-                      <p className="session-card-meta">{s.clientPhone}</p>
-                    )}
-                    <p className="session-card-meta">{formatDateTime(s.dateTime)}</p>
-                    {sessionHistoryTrueLabels(s.sessionHistory).length > 0 && (
-                      <p className="session-history-flags">
-                        {sessionHistoryTrueLabels(s.sessionHistory).map((label) => (
-                          <span key={label} className="history-flag">
-                            {label}
-                          </span>
-                        ))}
-                      </p>
-                    )}
-                    {Array.isArray(s.comments) && s.comments.length > 0 && (
-                      <p className="session-card-meta">
-                        <span className="comments-flag">
-                          {s.comments.length}{' '}
-                          {s.comments.length === 1 ? 'comment' : 'comments'}
-                          {s.comments.some((c) => !c.resolved)
-                            ? ` · ${s.comments.filter((c) => !c.resolved).length} open`
-                            : ' · all resolved'}
-                        </span>
-                      </p>
-                    )}
-                    <p className="session-card-meta">
-                      {[s.sessionType, s.massageType].filter(Boolean).join(' · ') || '—'}
-                    </p>
-                    <p className="session-card-meta">{formatSessionCycle(s)}</p>
-                    {s.offCycle ? <p className="session-card-meta">Off cycle</p> : null}
-                    {s.hands ? (
-                      <p className="session-card-meta">{s.hands} hands</p>
-                    ) : null}
-                    <p className="session-card-meta">Start {s.startTime || '—'}</p>
-                    <p className="session-card-meta">End {s.endTime || '—'}</p>
-                    <p className="session-card-meta session-duration">
-                      Duration {formatDuration(s.duration)}
-                    </p>
-                    <p className="session-card-meta">
-                      Therapists:{' '}
-                      {s.therapistLabel ||
-                        formatSessionTherapistsLabel(s.sessionTherapists) ||
-                        '—'}
-                    </p>
-                    {s.sessionCreatorName && (
-                      <p className="session-card-meta">Created by {s.sessionCreatorName}</p>
-                    )}
-                    <p className="session-card-meta">
-                      <strong>{formatMoney(s.amount)}</strong>
-                    </p>
-                    {s.lunez ? (
-                      <p className="session-card-meta">
-                        Lunez {formatMoney(s.lunezAmount || 0)}
-                      </p>
-                    ) : null}
-                    {(Array.isArray(s.clientSupports) && s.clientSupports.length
-                      ? s.clientSupports
-                      : s.clientSupport
-                        ? [s.clientSupport]
-                        : []
-                    ).map((cs, csi) => (
-                      <p key={cs.id || `${cs.description}-${csi}`} className="session-card-meta">
-                        Support {cs.description} {formatMoney(cs.amount)}
-                        {cs.type ? ` · ${cs.type}` : ''}
-                      </p>
-                    ))}
-                    <div className="session-card-payments">
-                      <span className="session-card-meta">Payments</span>
-                      <PaymentMethodsDisplay
-                        paymentMethods={s.paymentMethods}
-                        onOpenReceipt={setReceiptLightbox}
-                      />
-                    </div>
-                    <div className="session-row-actions session-card-action">
-                      {timeBtns.showStart && (
-                        <button
-                          type="button"
-                          className="btn small primary"
-                          disabled={!s.sessionCode}
-                          onClick={() => startSavedSession(s)}
-                        >
-                          Start
-                        </button>
-                      )}
-                      {timeBtns.showEnd && (
-                        <button
-                          type="button"
-                          className="btn small primary"
-                          disabled={!s.sessionCode}
-                          onClick={() => endSavedSession(s)}
-                        >
-                          End
-                        </button>
-                      )}
-                      <IconButton
-                        label="Assign therapists"
-                        variant="primary"
-                        disabled={!s.sessionCode}
-                        onClick={() => openAssignSession(s)}
-                      >
-                        <IconUsers />
-                      </IconButton>
-                      <IconButton
-                        label="Confirm payments"
-                        variant="primary"
-                        disabled={!s.sessionCode}
-                        onClick={() => openConfirmPayments(s)}
-                      >
-                        <IconConfirmPayment />
-                      </IconButton>
-                      <IconButton
-                        label="Add payment"
-                        variant="primary"
-                        disabled={!s.sessionCode}
-                        onClick={() => openAddPayment(s)}
-                      >
-                        <IconPaymentPlus />
-                      </IconButton>
-                      <IconButton
-                        label="Client support"
-                        variant="primary"
-                        disabled={!s.sessionCode}
-                        onClick={() => openClientSupport(s)}
-                      >
-                        <IconClientSupport />
-                      </IconButton>
-                      <IconButton
-                        label="Add comment"
-                        variant="primary"
-                        disabled={!s.sessionCode}
-                        onClick={() => openAddComment(s)}
-                      >
-                        <IconComment />
-                      </IconButton>
-                      {s.sessionHistory?.disputed ? (
-                        <button
-                          type="button"
-                          className="btn small primary"
-                          disabled={!s.sessionCode}
-                          onClick={() => openDispute(s)}
-                        >
-                          Dispute
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="btn small ghost"
-                        disabled={!s.sessionCode}
-                        title="Manage session"
-                        onClick={() => openManageSession(s)}
-                      >
-                        Manage
-                      </button>
-                    </div>
-            </li>
-                  )
-                })}
-          </ul>
+                    session={s}
+                    index={i}
+                    active={
+                      !!(
+                        activeSession?.sessionCode &&
+                        activeSession.sessionCode === s.sessionCode
+                      )
+                    }
+                    selectedClient={client}
+                    onAssign={openAssignSession}
+                    onComplete={(session) =>
+                      openManageSession(session, { tab: 'status', status: 'completed' })
+                    }
+                    onConfirm={openConfirmPayments}
+                    onSupport={openClientSupport}
+                    onComment={openAddComment}
+                    onManage={openManageSession}
+                    onOpenReceipt={setReceiptLightbox}
+                  />
+                ))}
+              </ul>
             </>
           )}
       </section>

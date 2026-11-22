@@ -417,6 +417,8 @@ export function normalizeSession(apiSession, extras = {}) {
     clientId: apiSession.client_id ?? nestedClient?.id,
     clientName: nestedClient?.name || extras.clientName || apiSession.client_name || '',
     clientPhone: nestedClient?.phone || extras.clientPhone || apiSession.client_phone || '',
+    clientCycle: nestedClient?.cycle ?? null,
+    clientCycleLength: nestedClient?.cycle_length ?? null,
     dateTime: apiSession.session_date || apiSession.created_at || new Date().toISOString(),
     createdAt: apiSession.created_at || '',
     sessionType: (() => {
