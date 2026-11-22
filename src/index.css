@@ -32,6 +32,10 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: 87.5%;
+}
+
 html,
 body,
 #root {
@@ -41,6 +45,7 @@ body,
 
 body {
   background: var(--bg);
+  font-size: 1rem;
 }
 
 button,

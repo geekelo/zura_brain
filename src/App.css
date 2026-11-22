@@ -1120,38 +1120,98 @@ table tbody tr:hover {
 
 .session-table-desktop {
   width: 100%;
-  overflow-x: auto;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .session-table {
   width: 100%;
-  min-width: 1080px;
+  table-layout: fixed;
   border-collapse: separate;
-  border-spacing: 0 12px;
+  border-spacing: 0 10px;
+  font-size: 0.75rem;
 }
 
 .session-table th,
 .session-table td {
   white-space: normal;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: break-word;
   vertical-align: top;
   border-bottom: none;
 }
 
+.session-table th:nth-child(1),
+.session-table td:nth-child(1) { width: 4.5%; }
+.session-table th:nth-child(2),
+.session-table td:nth-child(2) { width: 12%; }
+.session-table th:nth-child(3),
+.session-table td:nth-child(3) { width: 13%; }
+.session-table th:nth-child(4),
+.session-table td:nth-child(4) { width: 14%; }
+.session-table th:nth-child(5),
+.session-table td:nth-child(5) { width: 10%; }
+.session-table th:nth-child(6),
+.session-table td:nth-child(6) { width: 10%; }
+.session-table th:nth-child(7),
+.session-table td:nth-child(7) { width: 12%; }
+.session-table th:nth-child(8),
+.session-table td:nth-child(8) { width: 8.5%; }
+.session-table th:nth-child(9),
+.session-table td:nth-child(9) { width: 16%; }
+
+.session-therapists {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.session-therapists li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.therapist-name {
+  color: #111827;
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.therapist-role {
+  color: #9ca3af;
+  font-size: 0.62rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-transform: capitalize;
+}
+
 .session-table thead th {
-  padding: 0 12px 4px;
+  padding: 0 8px 2px;
   color: #7c6b9a;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 650;
   letter-spacing: 0;
   text-transform: none;
 }
 
 .session-table tbody td {
-  padding: 14px 12px;
+  padding: 8px 5px;
   background: #fff;
   border-top: 1px solid #efeaf8;
   border-bottom: 1px solid #efeaf8;
+}
+
+.session-table .badge {
+  max-width: 100%;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  white-space: normal;
 }
 
 .session-table tbody td:first-child {
@@ -1175,23 +1235,31 @@ table tbody tr:hover {
 .session-index {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
   background: #f3e8ff;
   color: #6d28d9;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
 .desk-line {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
   color: #4b5563;
-  font-size: 0.82rem;
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.desk-line > span:last-child {
+  min-width: 0;
 }
 
 .desk-line.strong {
+  overflow-wrap: break-word;
   color: #111827;
   font-weight: 700;
 }
@@ -1203,36 +1271,38 @@ table tbody tr:hover {
 }
 
 .desk-glyph {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
   margin-top: 2px;
   color: #7c3aed;
 }
 
 .desk-line:not(:has(.desk-glyph)) {
-  padding-left: 20px;
+  padding-left: 16px;
 }
 
 .desk-actions {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
-  min-width: 156px;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
 }
 
 .desk-action-grid {
   display: grid;
-  grid-template-columns: repeat(4, 34px);
-  gap: 6px;
-  justify-content: end;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
 }
 
 .desk-action-grid .icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 100%;
+  height: 30px;
+  min-width: 0;
+  flex: 1 1 auto;
+  border-radius: 8px;
 }
 
 .desk-text-btn,
@@ -1249,23 +1319,46 @@ table tbody tr:hover {
 
 .desk-text-btn {
   grid-column: span 2;
-  height: 34px;
-  border-radius: 10px;
-  font-size: 0.75rem;
+  height: 30px;
+  min-width: 0;
+  border-radius: 8px;
+  font-size: 0.68rem;
 }
 
 .desk-manage {
   width: 100%;
-  min-height: 34px;
-  border-radius: 10px;
+  min-height: 30px;
+  border-radius: 8px;
   color: #4b5563;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
+}
+
+.session-table .history-flag,
+.session-table .comments-flag {
+  font-size: 0.62rem;
+  padding: 1px 6px;
 }
 
 .session-table .payment-method-item {
+  min-width: 0;
+  gap: 4px;
+  padding: 4px 6px;
   background: #fff;
   border-color: #e9e3f7;
-  border-radius: 12px;
+  border-radius: 10px;
+}
+
+.session-table .payment-method-amount {
+  font-size: 0.75rem;
+}
+
+.session-table .payment-method-meta {
+  font-size: 0.65rem;
+}
+
+.session-table .receipt-thumb {
+  width: 28px;
+  height: 36px;
 }
 
 .payment-methods-list {
@@ -1613,7 +1706,7 @@ table tbody tr:hover {
 .session-cards {
   display: none;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1633,7 +1726,7 @@ table tbody tr:hover {
 
 .session-card-hero {
   position: relative;
-  padding: 16px 16px 14px;
+  padding: 12px 14px 8px;
   background:
     radial-gradient(140px 90px at 100% 0%, rgba(196, 181, 253, 0.85), transparent 72%),
     linear-gradient(180deg, #f5f3ff 0%, #ffffff 100%);
@@ -1649,20 +1742,11 @@ table tbody tr:hover {
 .session-card-index {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
   background: #fff;
   color: var(--purple);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.session-card-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--purple);
-  font-size: 0.92rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
@@ -1675,25 +1759,25 @@ table tbody tr:hover {
 
 .session-card-title {
   display: block;
-  margin-top: 12px;
-  font-size: 1.55rem;
-  line-height: 1.15;
-  letter-spacing: -0.03em;
+  margin-top: 6px;
+  font-size: 1.15rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
   color: #3b0764;
 }
 
 .session-card-line {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 6px 0 0;
+  gap: 6px;
+  margin: 2px 0 0;
   color: #6b7280;
-  font-size: 0.92rem;
+  font-size: 0.75rem;
 }
 
 .session-card-line.muted {
-  margin-left: 24px;
-  font-size: 0.82rem;
+  margin-left: 22px;
+  font-size: 0.68rem;
 }
 
 .session-card-icon {
@@ -1705,16 +1789,16 @@ table tbody tr:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .session-card-chips .badge,
 .session-card-chips .history-flag,
 .session-card-chips .comments-flag {
   margin: 0;
-  padding: 5px 10px;
-  font-size: 0.75rem;
+  padding: 3px 8px;
+  font-size: 0.64rem;
 }
 
 .session-card-chips .badge.pending {
@@ -1731,15 +1815,15 @@ table tbody tr:hover {
 .session-card-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px 14px 8px;
+  gap: 6px;
+  padding: 2px 12px 4px;
 }
 
 .session-card-section {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px 10px;
   border: 1px solid #efeafd;
   border-radius: 14px;
   background: #fff;
@@ -1748,22 +1832,22 @@ table tbody tr:hover {
 .session-card-section h3 {
   margin: 0;
   color: #6d28d9;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
 .session-card-section p {
   margin: 2px 0 0;
   color: #4b5563;
-  font-size: 0.92rem;
+  font-size: 0.75rem;
 }
 
 .session-card-glyph {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   border-radius: 10px;
   background: #f5f3ff;
   color: #7c3aed;
@@ -1777,8 +1861,8 @@ table tbody tr:hover {
 .session-card-times {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 4px;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 .session-card-times p {
@@ -1795,15 +1879,16 @@ table tbody tr:hover {
 .session-card-times span {
   display: block;
   color: #9ca3af;
-  font-size: 0.72rem;
+  font-size: 0.62rem;
 }
 
 .session-card-times strong {
   display: block;
   margin-top: 2px;
   color: #111827;
-  font-size: 0.92rem;
+  font-size: 0.66rem;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .session-card-price {
@@ -1815,7 +1900,7 @@ table tbody tr:hover {
 
 .session-card-price strong {
   color: #111827;
-  font-size: 1.05rem;
+  font-size: 0.88rem;
 }
 
 .session-card-pay {
@@ -1829,12 +1914,12 @@ table tbody tr:hover {
 }
 
 .session-card-pay-head h3 {
-  font-size: 0.95rem;
+  font-size: 0.75rem;
 }
 
 .session-card .payment-method-item {
   width: 100%;
-  padding: 12px;
+  padding: 8px 10px;
   border: none;
   border-left: 3px solid #7c3aed;
   border-radius: 12px;
@@ -1842,8 +1927,21 @@ table tbody tr:hover {
 }
 
 .session-card .payment-method-amount {
-  font-size: 1.2rem;
+  font-size: 0.92rem;
   color: #111827;
+}
+
+.session-card .payment-method-meta,
+.session-card .payment-method-main .badge {
+  font-size: 0.64rem;
+}
+
+.session-card .therapist-name {
+  font-size: 0.72rem;
+}
+
+.session-card .therapist-role {
+  font-size: 0.58rem;
 }
 
 .session-card .receipt-thumb {
@@ -1860,8 +1958,8 @@ table tbody tr:hover {
 .session-card-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 8px 14px 16px;
+  gap: 6px;
+  padding: 6px 12px 10px;
 }
 
 .session-action-grid {
@@ -1874,10 +1972,10 @@ table tbody tr:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 64px;
-  padding: 12px 4px;
+  min-height: 46px;
+  padding: 8px 4px;
   border: none;
-  border-radius: 18px;
+  border-radius: 14px;
   background: #f3eefe;
   color: #6d28d9;
 }
@@ -1892,9 +1990,9 @@ table tbody tr:hover {
 
 .session-manage-btn {
   width: 100%;
-  min-height: 48px;
+  min-height: 36px;
   border-radius: 14px;
-  font-size: 1rem;
+  font-size: 0.82rem;
 }
 
 .session-card-meta {
@@ -2161,7 +2259,7 @@ table tbody tr:hover {
   }
 
   .session-card-actions {
-    padding: 8px 10px 14px;
+    padding: 4px 10px 10px;
   }
 
   .session-action-grid {

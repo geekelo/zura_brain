@@ -114,6 +114,46 @@ function sessionClockRange(session) {
   return `${start} – ${end}`
 }
 
+function sessionTherapistRows(session) {
+  if (Array.isArray(session?.sessionTherapists) && session.sessionTherapists.length) {
+    return session.sessionTherapists
+      .map((row) => ({
+        name: String(row?.name || '').trim(),
+        role: String(row?.role || '').trim(),
+      }))
+      .filter((row) => row.name)
+  }
+  const label = String(session?.therapistLabel || '').trim()
+  if (!label) return []
+  return label
+    .split(',')
+    .map((part) => {
+      const match = part.trim().match(/^(.*?)(?:\s*\(([^)]+)\))?$/)
+      return {
+        name: String(match?.[1] || part).trim(),
+        role: String(match?.[2] || '').trim(),
+      }
+    })
+    .filter((row) => row.name)
+}
+
+function TherapistRoster({ session }) {
+  const rows = sessionTherapistRows(session)
+  if (!rows.length) return <span className="muted">—</span>
+  return (
+    <ul className="session-therapists">
+      {rows.map((row, index) => (
+        <li key={`${row.name}-${row.role}-${index}`}>
+          <span className="therapist-name">{row.name}</span>
+          {row.role ? (
+            <span className={`therapist-role ${row.role.toLowerCase()}`}>{row.role}</span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function DeskGlyph({ children }) {
   return (
     <svg className="desk-glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -175,10 +215,6 @@ function SessionMobileCard({
       <div className="session-card-hero">
         <div className="session-card-brandbar">
           <span className="session-card-index">#{index + 1}</span>
-          <span className="session-card-brand">
-            <span className="lotus sm" aria-hidden="true">❀</span>
-            Zura Spa
-          </span>
         </div>
         <strong className="session-card-title">
           {s.clientName || s.clientPhone || 'Unnamed client'}
@@ -247,9 +283,7 @@ function SessionMobileCard({
           <span className="session-card-glyph" aria-hidden="true"><IconUsers size={18} /></span>
           <div>
             <h3>Therapists</h3>
-            <p>
-              {s.therapistLabel || formatSessionTherapistsLabel(s.sessionTherapists) || '—'}
-            </p>
+            <TherapistRoster session={s} />
           </div>
         </section>
 
@@ -2417,25 +2451,7 @@ export default function App() {
                           </div>
                         </td>
                         <td>
-                          <div className="cell-stack desk-stack">
-                            {(s.therapistLabel || formatSessionTherapistsLabel(s.sessionTherapists) || '—')
-                              .split(',')
-                              .map((name) => name.trim())
-                              .filter(Boolean)
-                              .map((name, nameIndex) => (
-                                <span key={`${name}-${nameIndex}`} className="desk-line">
-                                  {nameIndex === 0 ? (
-                                    <DeskGlyph>
-                                      <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
-                                      <path d="M6 19a6 6 0 0 1 12 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                                    </DeskGlyph>
-                                  ) : (
-                                    <span className="desk-glyph" />
-                                  )}
-                                  {name}
-                                </span>
-                              ))}
-                          </div>
+                          <TherapistRoster session={s} />
                         </td>
                         <td>
                           <div className="cell-stack desk-stack">
