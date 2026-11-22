@@ -2202,3 +2202,21 @@ table tbody tr.row-active {
     width: 100%;
   }
 }
+
+.dispute-block {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line, #e4dcd0);
+}
+
+.stack-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.stack-form label {
+  display: grid;
+  gap: 0.25rem;
+}

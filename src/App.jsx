@@ -42,6 +42,7 @@ import AddPaymentModal from './AddPaymentModal'
 import ConfirmPaymentsModal from './ConfirmPaymentsModal'
 import ClientSupportModal from './ClientSupportModal'
 import AddCommentModal from './AddCommentModal'
+import DisputeModal from './DisputeModal'
 import IconButton, {
   IconUsers,
   IconPaymentPlus,
@@ -265,6 +266,7 @@ export default function App() {
   const [confirmPaymentsSession, setConfirmPaymentsSession] = useState(null)
   const [clientSupportSession, setClientSupportSession] = useState(null)
   const [addCommentSession, setAddCommentSession] = useState(null)
+  const [disputeSession, setDisputeSession] = useState(null)
   const [receiptLightbox, setReceiptLightbox] = useState('')
   const [autoRefreshSessions, setAutoRefreshSessions] = useState(false)
 
@@ -837,6 +839,9 @@ export default function App() {
     setAddCommentSession((cur) =>
       cur && code && cur.sessionCode === code ? next : cur,
     )
+    setDisputeSession((cur) =>
+      cur && code && cur.sessionCode === code ? next : cur,
+    )
   }
 
   function applyPaymentMethods(sessionCode, nextList) {
@@ -853,6 +858,7 @@ export default function App() {
     setConfirmPaymentsSession(patch)
     setClientSupportSession(patch)
     setAddCommentSession(patch)
+    setDisputeSession(patch)
   }
 
   function removeSavedSession(sessionCode) {
@@ -934,12 +940,17 @@ export default function App() {
     }
   }
 
+  function sessionDisputed(s) {
+    return s.status === 'disputed' || !!s.sessionHistory?.disputed
+  }
+
   function openAssignSession(s) {
     setPanel(null)
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
     setClientSupportSession(null)
     setAddCommentSession(null)
+    setDisputeSession(null)
     setAssignSession(s)
   }
 
@@ -949,6 +960,7 @@ export default function App() {
     setConfirmPaymentsSession(null)
     setClientSupportSession(null)
     setAddCommentSession(null)
+    setDisputeSession(null)
     setAddPaymentSession(s)
   }
 
@@ -958,6 +970,7 @@ export default function App() {
     setAddPaymentSession(null)
     setClientSupportSession(null)
     setAddCommentSession(null)
+    setDisputeSession(null)
     setConfirmPaymentsSession(s)
   }
 
@@ -967,6 +980,7 @@ export default function App() {
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
     setAddCommentSession(null)
+    setDisputeSession(null)
     setClientSupportSession(s)
   }
 
@@ -976,7 +990,18 @@ export default function App() {
     setAddPaymentSession(null)
     setConfirmPaymentsSession(null)
     setClientSupportSession(null)
+    setDisputeSession(null)
     setAddCommentSession(s)
+  }
+
+  function openDispute(s) {
+    setPanel(null)
+    setAssignSession(null)
+    setAddPaymentSession(null)
+    setConfirmPaymentsSession(null)
+    setClientSupportSession(null)
+    setAddCommentSession(null)
+    setDisputeSession(s)
   }
 
   function openManageSession(s) {
@@ -986,6 +1011,7 @@ export default function App() {
     setConfirmPaymentsSession(null)
     setClientSupportSession(null)
     setAddCommentSession(null)
+    setDisputeSession(null)
     setActiveSession(s)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1671,6 +1697,7 @@ export default function App() {
             onOpenAssign={() => openAssignSession(activeSession)}
             onOpenClientSupport={() => openClientSupport(activeSession)}
             onOpenAddComment={() => openAddComment(activeSession)}
+            onOpenDispute={() => openDispute(activeSession)}
           />
         )}
 
@@ -2098,6 +2125,16 @@ export default function App() {
                             >
                               <IconComment />
                             </IconButton>
+                            {sessionDisputed(s) ? (
+                              <button
+                                type="button"
+                                className="btn small primary"
+                                disabled={!s.sessionCode}
+                                onClick={() => openDispute(s)}
+                              >
+                                Dispute
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="btn small ghost"
@@ -2278,6 +2315,16 @@ export default function App() {
                       >
                         <IconComment />
                       </IconButton>
+                      {sessionDisputed(s) ? (
+                        <button
+                          type="button"
+                          className="btn small primary"
+                          disabled={!s.sessionCode}
+                          onClick={() => openDispute(s)}
+                        >
+                          Dispute
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="btn small ghost"
@@ -2377,6 +2424,17 @@ export default function App() {
           onUpdated={(row) => {
             upsertSavedSession(row)
             refreshSessions()
+          }}
+        />
+      )}
+
+      {disputeSession && (
+        <DisputeModal
+          session={disputeSession}
+          showToast={showToast}
+          onClose={() => setDisputeSession(null)}
+          onUpdated={(row) => {
+            upsertSavedSession(row)
           }}
         />
       )}

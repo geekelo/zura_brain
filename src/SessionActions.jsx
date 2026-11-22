@@ -302,6 +302,7 @@ export default function SessionActions({
   onOpenAssign,
   onOpenClientSupport,
   onOpenAddComment,
+  onOpenDispute,
   onClose,
   showToast,
 }) {
@@ -1304,6 +1305,16 @@ export default function SessionActions({
             >
               Add comment
             </button>
+            {session.status === 'disputed' || session.sessionHistory?.disputed ? (
+              <button
+                type="button"
+                className="btn small primary"
+                disabled={!ss}
+                onClick={() => onOpenDispute?.()}
+              >
+                Dispute
+              </button>
+            ) : null}
             <button
               type="button"
               className="btn small ghost"
