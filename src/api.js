@@ -311,6 +311,7 @@ const SESSION_HISTORY_KEYS = [
   'ended',
   'payment_verified',
   'completed',
+  'disputed',
 ]
 
 export function normalizeSessionHistory(raw) {
@@ -772,7 +773,8 @@ export async function resolvePosSessionComment({
  * PATCH /pos/sessions/:ss/status
  * `completed` / `disputed` require admin `tc` only (th/code → 401).
  * Other statuses: admin `tc` or session creator `th`.
- * `disputed` sets session_history.completed false; `completed` sets it true.
+ * `disputed` sets session_history.completed false and sticky disputed true;
+ * `completed` sets session_history.completed true.
  */
 export async function setPosSessionStatus({ sessionCode, th, tc, status }) {
   const ss = encodeURIComponent(String(sessionCode || '').trim())
