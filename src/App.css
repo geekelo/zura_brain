@@ -1936,12 +1936,18 @@ table tbody tr:hover {
   font-size: 0.64rem;
 }
 
-.session-card .therapist-name {
-  font-size: 0.72rem;
+.session-card .session-therapists li {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .session-card .therapist-role {
   font-size: 0.58rem;
+}
+
+.session-card .therapist-name {
+  font-size: 0.72rem;
 }
 
 .session-card .receipt-thumb {
