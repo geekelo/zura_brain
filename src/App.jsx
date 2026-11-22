@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ClientPhoneQr from './ClientPhoneQr'
-import SessionStatusBadge, { DisputeWarn } from './SessionStatusBadge'
+import SessionStatusBadge from './SessionStatusBadge'
 import PhoneQrScanner from './PhoneQrScanner'
 import {
   clients,
@@ -1982,8 +1982,7 @@ export default function App() {
                             {sessionHistoryTrueLabels(s.sessionHistory).length > 0 && (
                               <span className="session-history-flags">
                                 {sessionHistoryTrueLabels(s.sessionHistory).map((label) => (
-                                  <span key={label} className={`history-flag${label === 'disputed' ? ' warn' : ''}`}>
-                                    {label === 'disputed' ? <DisputeWarn /> : null}
+                                  <span key={label} className="history-flag">
                                     {label}
                                   </span>
                                 ))}
@@ -2186,8 +2185,7 @@ export default function App() {
                     {sessionHistoryTrueLabels(s.sessionHistory).length > 0 && (
                       <p className="session-history-flags">
                         {sessionHistoryTrueLabels(s.sessionHistory).map((label) => (
-                          <span key={label} className={`history-flag${label === 'disputed' ? ' warn' : ''}`}>
-                            {label === 'disputed' ? <DisputeWarn /> : null}
+                          <span key={label} className="history-flag">
                             {label}
                           </span>
                         ))}

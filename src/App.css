@@ -409,8 +409,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .badge.disputed,
-  .dispute-warn,
-  .history-flag.warn .dispute-warn {
+  .dispute-warn {
     animation: none;
   }
 }
@@ -1564,12 +1563,6 @@ table tbody tr:hover {
   text-transform: lowercase;
 }
 
-.history-flag.warn {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #f87171;
-  font-weight: 800;
-}
 
 .comments-flag {
   display: inline-block;
