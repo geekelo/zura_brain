@@ -413,6 +413,29 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!client?.phone) return undefined
+    if (client.onCycleSessions != null && client.offCycleSessions != null) return undefined
+    let cancelled = false
+    listPosSessions({ phone: client.phone }).then((result) => {
+      if (cancelled || !result.ok) return
+      const sessions = result.sessions || []
+      const offCycleSessions = sessions.filter((row) => row.offCycle).length
+      setClient((current) => {
+        if (!current || current.phone !== client.phone) return current
+        if (current.onCycleSessions != null && current.offCycleSessions != null) return current
+        return {
+          ...current,
+          offCycleSessions,
+          onCycleSessions: sessions.length - offCycleSessions,
+        }
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [client?.phone, client?.onCycleSessions, client?.offCycleSessions])
+
   function requireStaff(code) {
     const staff = resolveStaff(code)
     if (!staff) {
@@ -764,6 +787,12 @@ export default function App() {
           cycleTotal: nextLength,
           totalSessions: (c.totalSessions || 0) + 1,
           pendingSessions: (c.pendingSessions || 0) + 1,
+          onCycleSessions: c.onCycleSessions == null
+            ? c.onCycleSessions
+            : c.onCycleSessions + (row.offCycle ? 0 : 1),
+          offCycleSessions: c.offCycleSessions == null
+            ? c.offCycleSessions
+            : c.offCycleSessions + (row.offCycle ? 1 : 0),
         }
       })
       setForm(emptyForm())
@@ -1420,6 +1449,14 @@ export default function App() {
                   <div className="metric">
                     <span className="metric-label">Sessions</span>
                     <strong>{client.totalSessions ?? 0}</strong>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">On cycle</span>
+                    <strong>{client.onCycleSessions ?? '…'}</strong>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Off cycle</span>
+                    <strong>{client.offCycleSessions ?? '…'}</strong>
                   </div>
                   <div className="metric metric-wide">
                     <span className="metric-label">By status</span>

@@ -162,6 +162,8 @@ export function normalizeClient(apiClient) {
     pendingSessions: apiClient.pending_sessions ?? 0,
     disputedSessions: apiClient.disputed_sessions ?? 0,
     ongoingSessions: apiClient.ongoing_sessions ?? 0,
+    onCycleSessions: apiClient.on_cycle_sessions ?? null,
+    offCycleSessions: apiClient.off_cycle_sessions ?? null,
     preferences: apiClient.client_preferences ?? apiClient.preferences ?? '',
     created_at: apiClient.created_at,
     updated_at: apiClient.updated_at,
