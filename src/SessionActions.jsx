@@ -90,8 +90,6 @@ function emptyUpdate(session) {
     massage_type: session.massageType || DEFAULT_MASSAGE_TYPE,
     session_date: toDateInputValue(session.dateTime || createdAt),
     created_at: createdAt,
-    start_time: toTimeOfDay(session.startTime) || '',
-    end_time: toTimeOfDay(session.endTime) || '',
     hands: session.hands || '2',
   }
 }
@@ -352,7 +350,6 @@ export default function SessionActions({
     const start = toTimeOfDay(session.startTime) || ''
     const end = toTimeOfDay(session.endTime) || ''
     setTimesForm({ start_time: start, end_time: end })
-    setUpdateForm((f) => ({ ...f, start_time: start, end_time: end }))
   }, [session.sessionCode, session.startTime, session.endTime])
 
   // Keep payments / status in sync after parent session refresh.
@@ -556,8 +553,6 @@ export default function SessionActions({
           massage_type: String(updateForm.massage_type || '').trim(),
           off_cycle: !!updateForm.off_cycle,
           session_date: session_date || undefined,
-          start_time: updateForm.start_time || null,
-          end_time: updateForm.end_time || null,
           hands: updateForm.hands,
         },
       })
@@ -1068,24 +1063,6 @@ export default function SessionActions({
               </select>
             </label>
           )}
-          <label>
-            Start time
-            <input
-              type="time"
-              step="1"
-              value={toTimeOfDay(updateForm.start_time)}
-              onChange={(e) => setU('start_time', e.target.value)}
-            />
-          </label>
-          <label>
-            End time
-            <input
-              type="time"
-              step="1"
-              value={toTimeOfDay(updateForm.end_time)}
-              onChange={(e) => setU('end_time', e.target.value)}
-            />
-          </label>
           <div className="form-actions full">
             <button type="submit" className="btn primary" disabled={busy}>
               {busy ? 'Saving…' : 'Update session'}

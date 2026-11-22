@@ -420,7 +420,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .badge.disputed,
-  .dispute-warn {
+  .dispute-warn,
+  .session-card-time-btn,
+  .desk-time-btn {
     animation: none;
   }
 }
@@ -1188,6 +1190,36 @@ table tbody tr:hover {
   line-height: 1.2;
 }
 
+.session-therapists li.has-tip {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 4px;
+  row-gap: 1px;
+  justify-content: start;
+  align-items: center;
+}
+
+.session-therapists li.has-tip .therapist-name {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.session-therapists li.has-tip .therapist-tip {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.session-therapists li.has-tip .therapist-role {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.therapist-tip {
+  display: inline-flex;
+  color: #15803d;
+  line-height: 0;
+}
+
 .therapist-role {
   color: #9ca3af;
   font-size: 0.62rem;
@@ -1342,6 +1374,10 @@ table tbody tr:hover {
   font-size: 0.68rem;
 }
 
+.desk-time-btn:not(:disabled) {
+  animation: session-time-pulse 1.6s ease-in-out infinite;
+}
+
 .desk-manage {
   width: 100%;
   min-height: 30px;
@@ -1446,6 +1482,10 @@ table tbody tr:hover {
 .payment-method-main .badge {
   margin-top: 2px;
   font-size: 0.65rem;
+}
+
+.payment-method-when {
+  display: none;
 }
 
 .receipt-thumb-btn {
@@ -1823,6 +1863,47 @@ table tbody tr:hover {
   font-size: 0.68rem;
 }
 
+.session-card-times strong,
+.session-card-time-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: #111827;
+  font-size: 0.66rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.session-card-time-btn {
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  line-height: 1;
+}
+
+.session-card-time-btn:not(:disabled) {
+  animation: session-time-pulse 1.6s ease-in-out infinite;
+}
+
+.session-card-time-btn:disabled {
+  opacity: 0.45;
+}
+
+@keyframes session-time-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(28 16 48 / 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(28 16 48 / 0);
+    transform: scale(1.06);
+  }
+}
+
 .session-card-icon {
   flex: 0 0 auto;
   color: #7c3aed;
@@ -1925,15 +2006,6 @@ table tbody tr:hover {
   font-size: 0.62rem;
 }
 
-.session-card-times strong {
-  display: block;
-  margin-top: 2px;
-  color: #111827;
-  font-size: 0.66rem;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
 .session-card-price {
   display: flex;
   flex-wrap: wrap;
@@ -1954,35 +2026,121 @@ table tbody tr:hover {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
 }
 
 .session-card-pay-head h3 {
   font-size: 0.75rem;
 }
 
-.session-card .payment-method-item {
+.session-card .payment-methods-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   width: 100%;
-  padding: 8px 10px;
-  border: none;
-  border-left: 3px solid #7c3aed;
-  border-radius: 12px;
-  background: #f5f3ff;
+}
+
+.session-card .payment-method-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  align-content: start;
+  column-gap: 8px;
+  row-gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid #ede9fe;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.session-card .payment-method-item.has-receipt {
+  grid-template-columns: minmax(0, 1fr) 42px;
+}
+
+.session-card .payment-method-main {
+  display: contents;
 }
 
 .session-card .payment-method-amount {
-  font-size: 0.92rem;
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 0.84rem;
+  line-height: 1.15;
   color: #111827;
+  white-space: nowrap;
 }
 
-.session-card .payment-method-meta,
-.session-card .payment-method-main .badge {
+.session-card .payment-method-meta {
+  grid-column: 1;
+  grid-row: 2;
   font-size: 0.64rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
-.session-card .session-therapists li {
+.session-card .receipt-thumb-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+  justify-self: end;
+  width: 42px;
+  height: 54px;
+}
+
+.session-card .payment-method-main .badge {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  justify-self: start;
+  width: max-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  font-size: 0.6rem;
+  white-space: nowrap;
+}
+
+.session-card .payment-method-main .badge.done::before {
+  content: "✓";
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.session-card .payment-method-when {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 4;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding-top: 7px;
+  border-top: 1px solid #f3f0fa;
+  color: #6b7280;
+  font-size: 0.6rem;
+  line-height: 1.2;
+}
+
+.session-card .payment-method-item:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.session-card .session-therapists li,
+.session-card .session-therapists li.has-tip {
+  display: flex;
   flex-direction: row;
+  flex-wrap: nowrap;
   align-items: baseline;
   gap: 6px;
+}
+
+.session-card .session-therapists li.has-tip .therapist-role {
+  grid-column: auto;
+}
+
+.session-card .therapist-tip {
+  flex: 0 0 auto;
+  align-self: center;
 }
 
 .session-card .therapist-role {
@@ -1994,9 +2152,10 @@ table tbody tr:hover {
 }
 
 .session-card .receipt-thumb {
-  width: 52px;
-  height: 64px;
+  width: 100%;
+  height: 100%;
   border-radius: 8px;
+  object-fit: cover;
 }
 
 .session-card .receipt-thumb-btn {

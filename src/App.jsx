@@ -121,6 +121,7 @@ function sessionTherapistRows(session) {
       .map((row) => ({
         name: String(row?.name || '').trim(),
         role: String(row?.role || '').trim(),
+        tipped: Number(row?.tipAmount) > 0,
       }))
       .filter((row) => row.name)
   }
@@ -144,10 +145,18 @@ function TherapistRoster({ session }) {
   return (
     <ul className="session-therapists">
       {rows.map((row, index) => (
-        <li key={`${row.name}-${row.role}-${index}`}>
+        <li key={`${row.name}-${row.role}-${index}`} className={row.tipped ? 'has-tip' : ''}>
           <span className="therapist-name">{row.name}</span>
           {row.role ? (
             <span className={`therapist-role ${row.role.toLowerCase()}`}>{row.role}</span>
+          ) : null}
+          {row.tipped ? (
+            <span className="therapist-tip" title="Tipped" aria-label="Tipped">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                <circle cx="12" cy="12" r="2.2" stroke="currentColor" strokeWidth="1.8" />
+              </svg>
+            </span>
           ) : null}
         </li>
       ))}
@@ -165,6 +174,14 @@ function DeskGlyph({ children }) {
 
 function formatMoney(n) {
   return `₦${Number(n).toLocaleString()}`
+}
+
+function formatPaymentWhen(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return `${day}, ${time}`
 }
 
 function CardIcon({ children }) {
@@ -190,6 +207,10 @@ function SessionMobileCard({
   index,
   active,
   selectedClient,
+  showStart,
+  showEnd,
+  onStart,
+  onEnd,
   onAssign,
   onComplete,
   onConfirm,
@@ -273,8 +294,44 @@ function SessionMobileCard({
           <div>
             <h3>Timing</h3>
             <div className="session-card-times">
-              <p><span>Start</span><strong>{s.startTime || '—'}</strong></p>
-              <p><span>End</span><strong>{s.endTime || '—'}</strong></p>
+              <p>
+                <span>Start</span>
+                {showStart ? (
+                  <button
+                    type="button"
+                    className="session-card-time-btn"
+                    disabled={!s.sessionCode}
+                    onClick={() => onStart?.(s)}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                      <path d="M12 8v4.5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                    Start
+                  </button>
+                ) : (
+                  <strong>{s.startTime || '—'}</strong>
+                )}
+              </p>
+              <p>
+                <span>End</span>
+                {showEnd ? (
+                  <button
+                    type="button"
+                    className="session-card-time-btn"
+                    disabled={!s.sessionCode}
+                    onClick={() => onEnd?.(s)}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                      <path d="M12 8v4.5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                    End
+                  </button>
+                ) : (
+                  <strong>{s.endTime || '—'}</strong>
+                )}
+              </p>
               <p><span>Duration</span><strong>{formatDuration(s.duration)}</strong></p>
             </div>
           </div>
@@ -386,8 +443,12 @@ function PaymentMethodsDisplay({ paymentMethods, onOpenReceipt }) {
     <ul className="payment-methods-list">
       {paymentMethods.map((pm, pi) => {
         const receipt = paymentReceiptImgUrl(pm)
+        const when = formatPaymentWhen(pm.createdAt)
         return (
-          <li key={pm.id || `${pm.source}-${pm.type}-${pi}`} className="payment-method-item">
+          <li
+            key={pm.id || `${pm.source}-${pm.type}-${pi}`}
+            className={`payment-method-item${receipt ? ' has-receipt' : ''}`}
+          >
             <div className="payment-method-main">
               <strong className="payment-method-amount">{formatMoney(pm.amount)}</strong>
               <span className="payment-method-meta">
@@ -406,6 +467,15 @@ function PaymentMethodsDisplay({ paymentMethods, onOpenReceipt }) {
               >
                 <img src={receipt} alt="" className="receipt-thumb" />
               </button>
+            ) : null}
+            {when ? (
+              <span className="payment-method-when">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                  <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+                {when}
+              </span>
             ) : null}
           </li>
         )
@@ -2494,20 +2564,28 @@ export default function App() {
                               {sessionTimeControls(s).showStart && (
                                 <button
                                   type="button"
-                                  className="desk-text-btn"
+                                  className="desk-text-btn desk-time-btn"
                                   disabled={!s.sessionCode}
                                   onClick={() => startSavedSession(s)}
                                 >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                                    <path d="M12 8v4.5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                                  </svg>
                                   Start
                                 </button>
                               )}
                               {sessionTimeControls(s).showEnd && (
                                 <button
                                   type="button"
-                                  className="desk-text-btn"
+                                  className="desk-text-btn desk-time-btn"
                                   disabled={!s.sessionCode}
                                   onClick={() => endSavedSession(s)}
                                 >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
+                                    <path d="M12 8v4.5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                                  </svg>
                                   End
                                 </button>
                               )}
@@ -2592,6 +2670,10 @@ export default function App() {
                       )
                     }
                     selectedClient={client}
+                    showStart={sessionTimeControls(s).showStart}
+                    showEnd={sessionTimeControls(s).showEnd}
+                    onStart={startSavedSession}
+                    onEnd={endSavedSession}
                     onAssign={openAssignSession}
                     onComplete={(session) =>
                       openManageSession(session, { tab: 'status', status: 'completed' })
