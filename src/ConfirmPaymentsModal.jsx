@@ -37,7 +37,7 @@ export default function ConfirmPaymentsModal({
     return /^\d+$/.test(raw) ? { tc: raw } : { th: raw }
   }
 
-  async function confirmPayment(pm) {
+  async function setPaymentStatus(pm, status) {
     if (busy) return
     const auth = paymentAuth()
     if (!auth) {
@@ -53,7 +53,7 @@ export default function ConfirmPaymentsModal({
           source: pm.source,
           type: pm.type,
           amount: pm.amount,
-          status: 'ok',
+          status,
         },
       })
       if (!result.ok) {
@@ -64,7 +64,7 @@ export default function ConfirmPaymentsModal({
       const nextList = payments.map((p) => (p.id === row.id ? row : p))
       setPayments(nextList)
       onPaymentUpdated?.(nextList)
-      showToast('Payment confirmed')
+      showToast(status === 'ok' ? 'Payment confirmed' : 'Marked not refunded')
     } catch (err) {
       showToast(err?.message || 'Network error')
     } finally {
@@ -110,7 +110,10 @@ export default function ConfirmPaymentsModal({
     }
   }
 
-  const pending = payments.filter((p) => String(p.status || '').toLowerCase() !== 'ok')
+  function settled(status) {
+    const key = String(status || '').toLowerCase()
+    return key === 'ok' || key === 'nonrefunded'
+  }
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -155,7 +158,7 @@ export default function ConfirmPaymentsModal({
           ) : (
             <ul className="payment-list confirm-payment-list">
               {payments.map((pm) => {
-                const confirmed = String(pm.status || '').toLowerCase() === 'ok'
+                const done = settled(pm.status)
                 const receipt = paymentReceiptImgUrl(pm)
                 return (
                   <li key={pm.id}>
@@ -166,41 +169,44 @@ export default function ConfirmPaymentsModal({
                           {[pm.source, pm.type].filter(Boolean).join(' · ') || '—'}
                         </span>
                         {pm.status ? (
-                          <span className="badge soft">{paymentStatusLabel(pm.status)}</span>
+                          <span className={`badge ${done ? 'done' : 'soft'}`}>{paymentStatusLabel(pm.status)}</span>
                         ) : null}
                       </div>
                       {receipt ? (
                         <img src={receipt} alt="" className="receipt-thumb" />
                       ) : null}
                     </div>
-                    {!confirmed ? (
+                    {done ? null : (
                       <div className="payment-actions">
                         <button
                           type="button"
                           className="btn small primary"
                           disabled={busy || !authCode.trim()}
-                          onClick={() => confirmPayment(pm)}
+                          onClick={() => setPaymentStatus(pm, 'ok')}
                         >
                           Confirm
                         </button>
+                        <button
+                          type="button"
+                          className="btn small ghost"
+                          disabled={busy || !authCode.trim()}
+                          onClick={() => setPaymentStatus(pm, 'nonrefunded')}
+                        >
+                          Not refunded
+                        </button>
                       </div>
-                    ) : (
-                      <p className="muted field-hint">Already confirmed</p>
                     )}
                   </li>
                 )
               })}
             </ul>
           )}
-          {pending.length === 0 && payments.length > 0 ? (
-            <p className="muted">All payment methods are confirmed.</p>
-          ) : null}
         </section>
 
         <section className="confirm-payments-section">
-          <h3>Session payment verified</h3>
+          <h3>Session payment</h3>
           {paymentVerified ? (
-            <p className="muted">This session is already payment verified.</p>
+            <p className="payment-verified-note">Payment verified</p>
           ) : (
             <form className="session-form" onSubmit={verifySessionPayment}>
               <p className="muted note-intro">

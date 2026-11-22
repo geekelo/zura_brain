@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ClientPhoneQr from './ClientPhoneQr'
+import SessionStatusBadge, { DisputeWarn } from './SessionStatusBadge'
 import PhoneQrScanner from './PhoneQrScanner'
 import {
   clients,
@@ -250,7 +251,7 @@ export default function App() {
   const [sendingNote, setSendingNote] = useState(false)
   const [preferencesText, setPreferencesText] = useState('')
   const [savingPreferences, setSavingPreferences] = useState(false)
-  const [dateFilter, setDateFilter] = useState('today') // today | yesterday | pick
+  const [dateFilter, setDateFilter] = useState('today') // today | yesterday | pick | disputed
   const [pickedDate, setPickedDate] = useState(() => todayISO().toISOString().slice(0, 10))
   /** day = date filter; client = all sessions for selected client (by cycle) */
   const [listMode, setListMode] = useState('day') // day | client
@@ -940,10 +941,6 @@ export default function App() {
     }
   }
 
-  function sessionDisputed(s) {
-    return s.status === 'disputed' || !!s.sessionHistory?.disputed
-  }
-
   function openAssignSession(s) {
     setPanel(null)
     setAddPaymentSession(null)
@@ -1077,10 +1074,15 @@ export default function App() {
           return new Date(a.dateTime) - new Date(b.dateTime)
         })
     }
+    if (dateFilter === 'disputed') {
+      return saved
+        .filter((s) => String(s.status || '').toLowerCase() === 'disputed')
+        .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime))
+    }
     return saved
       .filter((s) => startOfDay(s.dateTime).getTime() === filterDate.getTime())
       .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime))
-  }, [saved, filterDate, listMode, client])
+  }, [saved, filterDate, dateFilter, listMode, client])
 
   return (
     <div className="fd">
@@ -1894,7 +1896,19 @@ export default function App() {
                   >
                     Pick Date
                   </button>
-                  {dateFilter === 'pick' ? (
+                  <button
+                    type="button"
+                    className={dateFilter === 'disputed' ? 'active' : ''}
+                    onClick={() => {
+                      setListMode('day')
+                      setDateFilter('disputed')
+                    }}
+                  >
+                    Disputed
+                  </button>
+                  {dateFilter === 'disputed' ? (
+                    <span className="date-label">Current status disputed</span>
+                  ) : dateFilter === 'pick' ? (
                     <input
                       type="date"
                       value={pickedDate}
@@ -1929,7 +1943,9 @@ export default function App() {
                 ? 'Loading sessions…'
                 : listMode === 'client'
                   ? 'No sessions for this client.'
-                  : 'No saved sessions for this day.'}
+                  : dateFilter === 'disputed'
+                    ? 'No sessions with status disputed.'
+                    : 'No saved sessions for this day.'}
             </p>
           ) : (
             <>
@@ -1966,7 +1982,8 @@ export default function App() {
                             {sessionHistoryTrueLabels(s.sessionHistory).length > 0 && (
                               <span className="session-history-flags">
                                 {sessionHistoryTrueLabels(s.sessionHistory).map((label) => (
-                                  <span key={label} className="history-flag">
+                                  <span key={label} className={`history-flag${label === 'disputed' ? ' warn' : ''}`}>
+                                    {label === 'disputed' ? <DisputeWarn /> : null}
                                     {label}
                                   </span>
                                 ))}
@@ -2059,17 +2076,7 @@ export default function App() {
                           />
                         </td>
                         <td>
-                          <span
-                            className={`badge ${
-                              s.status === 'completed'
-                                ? 'completed'
-                                : s.status === 'settled' || s.status === 'ended'
-                                  ? 'done'
-                                  : 'pending'
-                            }`}
-                          >
-                            {s.status}
-                          </span>
+                          <SessionStatusBadge status={s.status} />
                         </td>
                         <td className="actions-cell">
                           <div className="session-row-actions">
@@ -2125,7 +2132,7 @@ export default function App() {
                             >
                               <IconComment />
                             </IconButton>
-                            {sessionDisputed(s) ? (
+                            {s.sessionHistory?.disputed ? (
                               <button
                                 type="button"
                                 className="btn small primary"
@@ -2167,17 +2174,7 @@ export default function App() {
                   >
                     <div className="session-card-top">
                       <span className="session-card-index">#{i + 1}</span>
-                      <span
-                        className={`badge ${
-                          s.status === 'completed'
-                            ? 'completed'
-                            : s.status === 'settled' || s.status === 'ended'
-                              ? 'done'
-                              : 'pending'
-                        }`}
-                      >
-                        {s.status}
-                      </span>
+                      <SessionStatusBadge status={s.status} />
                     </div>
                     <strong className="session-card-title">
                       {s.clientName || s.clientPhone || 'Unnamed client'}
@@ -2189,7 +2186,8 @@ export default function App() {
                     {sessionHistoryTrueLabels(s.sessionHistory).length > 0 && (
                       <p className="session-history-flags">
                         {sessionHistoryTrueLabels(s.sessionHistory).map((label) => (
-                          <span key={label} className="history-flag">
+                          <span key={label} className={`history-flag${label === 'disputed' ? ' warn' : ''}`}>
+                            {label === 'disputed' ? <DisputeWarn /> : null}
                             {label}
                           </span>
                         ))}
@@ -2315,7 +2313,7 @@ export default function App() {
                       >
                         <IconComment />
                       </IconButton>
-                      {sessionDisputed(s) ? (
+                      {s.sessionHistory?.disputed ? (
                         <button
                           type="button"
                           className="btn small primary"

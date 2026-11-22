@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import SessionStatusBadge from './SessionStatusBadge'
 import {
   sessionTypes,
   massageTypes,
@@ -562,8 +563,14 @@ export default function SessionActions({
     })
   }
 
+  const hasOpenDispute = (session.disputes || []).some((row) => !row.resolved)
+
   function submitStatus(e) {
     e?.preventDefault()
+    if (statusForm.status === 'completed' && hasOpenDispute) {
+      showToast('Resolve open disputes before completing this session')
+      return
+    }
     const adminOnly =
       statusForm.status === 'completed' || statusForm.status === 'disputed'
     if (adminOnly) {
@@ -788,9 +795,13 @@ export default function SessionActions({
       <div className="panel-head">
         <h2>
           Session {title}
-          <span className="badge soft" style={{ marginLeft: 8 }}>
-            {session.status}
-          </span>
+          {String(session.status || '').toLowerCase() === 'disputed' ? (
+            <SessionStatusBadge status={session.status} style={{ marginLeft: 8 }} />
+          ) : (
+            <span className="badge soft" style={{ marginLeft: 8 }}>
+              {session.status}
+            </span>
+          )}
         </h2>
         <button type="button" className="text-btn" onClick={onClose}>
           Close
@@ -1093,11 +1104,14 @@ export default function SessionActions({
               }}
             >
               {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
+                <option key={s} value={s} disabled={s === 'completed' && hasOpenDispute}>
                   {s}
                 </option>
               ))}
             </select>
+            {hasOpenDispute ? (
+              <span className="field-hint">Complete stays unavailable until every dispute is resolved.</span>
+            ) : null}
           </label>
           {statusForm.status !== 'completed' && statusForm.status !== 'disputed' && (
             <label className="staff-code-field">
@@ -1305,7 +1319,7 @@ export default function SessionActions({
             >
               Add comment
             </button>
-            {session.status === 'disputed' || session.sessionHistory?.disputed ? (
+            {session.sessionHistory?.disputed ? (
               <button
                 type="button"
                 className="btn small primary"

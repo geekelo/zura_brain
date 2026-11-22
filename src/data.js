@@ -109,7 +109,7 @@ export const paymentStatuses = [
   { value: 'pending', label: 'Unconfirmed' },
   { value: 'ok', label: 'Confirmed' },
   { value: 'refunded', label: 'Refunded' },
-  { value: 'nonrefunded', label: 'Not-refunded' },
+  { value: 'nonrefunded', label: 'Not refunded' },
 ]
 
 export function paymentStatusLabel(status) {

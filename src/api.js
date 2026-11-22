@@ -779,6 +779,7 @@ export async function resolvePosSessionComment({
  * Other statuses: admin `tc` or session creator `th`.
  * `disputed` sets session_history.completed false and sticky disputed true;
  * `completed` sets session_history.completed true.
+ * `completed` is rejected while the session has an unresolved dispute.
  */
 export async function setPosSessionStatus({ sessionCode, th, tc, status }) {
   const ss = encodeURIComponent(String(sessionCode || '').trim())
@@ -799,6 +800,7 @@ export async function setPosSessionStatus({ sessionCode, th, tc, status }) {
     401: 'Not authorized — completed and disputed require admin code',
     403: 'Only the creating therapist or admin can set status',
     404: 'Therapist or session not found',
+    422: 'Cannot complete a session while a dispute is unresolved',
   })
 }
 
