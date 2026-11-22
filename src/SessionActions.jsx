@@ -17,6 +17,7 @@ import {
   paymentTypes,
   paymentStatuses,
   paymentStatusLabel,
+  paymentStatusBadgeClass,
 } from './data'
 import {
   updatePosSession,
@@ -1450,7 +1451,7 @@ export default function SessionActions({
                           {[pm.source, pm.type].filter(Boolean).join(' · ') || '—'}
                         </span>
                         {pm.status ? (
-                          <span className="badge soft">{paymentStatusLabel(pm.status)}</span>
+                          <span className={`badge ${paymentStatusBadgeClass(pm.status)}`}>{paymentStatusLabel(pm.status)}</span>
                         ) : null}
                       </div>
                       {paymentReceiptImgUrl(pm) ? (

@@ -117,6 +117,13 @@ export function paymentStatusLabel(status) {
   const found = paymentStatuses.find((s) => s.value === key)
   return found?.label || status || ''
 }
+
+export function paymentStatusBadgeClass(status) {
+  const key = String(status || '').toLowerCase()
+  if (key === 'nonrefunded' || key === 'not refunded') return 'nonrefunded'
+  if (key === 'ok' || key === 'confirmed' || key === 'refunded') return 'done'
+  return 'soft'
+}
 export const sessionTherapistRoles = ['lead', 'assist', 'support', 'frontdesk']
 
 /** Front desk staff unique codes — used to attribute saves to a person */

@@ -214,12 +214,12 @@
 }
 
 .btn.primary {
-  background: var(--purple);
+  background: var(--ink);
   color: #fff;
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: var(--purple-deep);
+  background: var(--ink-hover);
 }
 
 .btn.primary:disabled {
@@ -230,8 +230,8 @@
 }
 
 .btn.outline {
-  border: 1.5px solid var(--purple);
-  color: var(--purple);
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
   background: #fff;
 }
 
@@ -352,6 +352,11 @@
 .badge.soft {
   background: var(--purple-soft);
   color: var(--purple);
+}
+
+.badge.nonrefunded {
+  background: #fff1f2;
+  color: #9f1239;
 }
 
 .badge.booked {
@@ -1061,8 +1066,8 @@
 }
 
 .seg button.active {
-  background: var(--purple);
-  border-color: var(--purple);
+  background: var(--ink);
+  border-color: var(--ink);
   color: #fff;
 }
 
@@ -1200,11 +1205,19 @@ table tbody tr:hover {
   text-transform: none;
 }
 
+.session-table tbody tr {
+  background: transparent;
+  filter: drop-shadow(0 2px 4px rgb(28 16 48 / 0.08));
+}
+
 .session-table tbody td {
   padding: 8px 5px;
   background: #fff;
-  border-top: 1px solid #efeaf8;
-  border-bottom: 1px solid #efeaf8;
+  border-top: 1px solid rgb(28 16 48 / 0.12);
+  border-bottom: 1px solid rgb(28 16 48 / 0.12);
+  border-left: 0;
+  border-right: 0;
+  box-shadow: none;
 }
 
 .session-table .badge {
@@ -1215,13 +1228,17 @@ table tbody tr:hover {
 }
 
 .session-table tbody td:first-child {
-  border-left: 1px solid #efeaf8;
+  border-left: 1px solid rgb(28 16 48 / 0.12);
   border-radius: 16px 0 0 16px;
 }
 
 .session-table tbody td:last-child {
-  border-right: 1px solid #efeaf8;
+  border-right: 1px solid rgb(28 16 48 / 0.12);
   border-radius: 0 16px 16px 0;
+}
+
+.session-table tbody tr:hover {
+  background: transparent;
 }
 
 .session-table tbody tr:hover td {
@@ -1340,20 +1357,46 @@ table tbody tr:hover {
 }
 
 .session-table .payment-method-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 4px;
+  row-gap: 2px;
   min-width: 0;
-  gap: 4px;
   padding: 4px 6px;
   background: #fff;
   border-color: #e9e3f7;
   border-radius: 10px;
 }
 
+.session-table .payment-method-main {
+  display: contents;
+}
+
 .session-table .payment-method-amount {
+  grid-column: 1;
+  grid-row: 1;
   font-size: 0.75rem;
 }
 
 .session-table .payment-method-meta {
+  grid-column: 1;
+  grid-row: 2;
   font-size: 0.65rem;
+}
+
+.session-table .receipt-thumb-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.session-table .payment-method-main .badge {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  justify-self: start;
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 .session-table .receipt-thumb {
@@ -1648,8 +1691,8 @@ table tbody tr:hover {
 }
 
 .therapist-pick.active {
-  background: var(--purple);
-  border-color: var(--purple);
+  background: var(--ink);
+  border-color: var(--ink);
   color: #fff;
 }
 
@@ -1982,8 +2025,8 @@ table tbody tr:hover {
   padding: 8px 4px;
   border: none;
   border-radius: 14px;
-  background: #f3eefe;
-  color: #6d28d9;
+  background: var(--ink);
+  color: #fff;
 }
 
 .session-action-tile svg {
@@ -2155,8 +2198,8 @@ table tbody tr:hover {
 }
 
 .icon-btn.primary {
-  background: var(--purple);
-  border-color: var(--purple);
+  background: var(--ink);
+  border-color: var(--ink);
   color: #fff;
 }
 
@@ -2397,8 +2440,8 @@ table tbody tr:hover {
 }
 
 .date-filters > button.active {
-  background: var(--purple);
-  border-color: var(--purple);
+  background: var(--ink);
+  border-color: var(--ink);
   color: #fff;
 }
 
@@ -2484,8 +2527,8 @@ table tbody tr:hover {
 }
 
 .action-tabs button.active {
-  background: var(--purple);
-  border-color: var(--purple);
+  background: var(--ink);
+  border-color: var(--ink);
   color: #fff;
 }
 
@@ -3330,4 +3373,24 @@ table tbody tr.row-active {
 .stack-form label {
   display: grid;
   gap: 0.25rem;
+}
+
+.btn.primary,
+.icon-btn.primary,
+.session-action-tile,
+.therapist-pick.active,
+.seg button.active,
+.date-filters > button.active,
+.action-tabs button.active {
+  background: #39296a;
+}
+
+.btn.primary:hover:not(:disabled),
+.icon-btn.primary:hover:not(:disabled),
+.session-action-tile:hover:not(:disabled),
+.therapist-pick.active:hover,
+.seg button.active:hover,
+.date-filters > button.active:hover,
+.action-tabs button.active:hover {
+  background: #46347e;
 }

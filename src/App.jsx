@@ -16,6 +16,7 @@ import {
   handsOptions,
   staffDirectory,
   paymentStatusLabel,
+  paymentStatusBadgeClass,
   whatsappTemplates,
 } from './data'
 import {
@@ -393,7 +394,7 @@ function PaymentMethodsDisplay({ paymentMethods, onOpenReceipt }) {
                 {[pm.source, pm.type].filter(Boolean).join(' · ') || '—'}
               </span>
               {pm.status ? (
-                <span className="badge soft">{paymentStatusLabel(pm.status)}</span>
+                <span className={`badge ${paymentStatusBadgeClass(pm.status)}`}>{paymentStatusLabel(pm.status)}</span>
               ) : null}
             </div>
             {receipt ? (

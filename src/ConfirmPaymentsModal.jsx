@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { paymentStatusLabel } from './data'
+import { paymentStatusBadgeClass, paymentStatusLabel } from './data'
 import {
   updatePosPaymentMethod,
   verifyPosSessionPayment,
@@ -169,7 +169,7 @@ export default function ConfirmPaymentsModal({
                           {[pm.source, pm.type].filter(Boolean).join(' · ') || '—'}
                         </span>
                         {pm.status ? (
-                          <span className={`badge ${done ? 'done' : 'soft'}`}>{paymentStatusLabel(pm.status)}</span>
+                          <span className={`badge ${paymentStatusBadgeClass(pm.status)}`}>{paymentStatusLabel(pm.status)}</span>
                         ) : null}
                       </div>
                       {receipt ? (
