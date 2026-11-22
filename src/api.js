@@ -406,6 +406,9 @@ export function normalizeSession(apiSession, extras = {}) {
   const sessionHistory = normalizeSessionHistory(apiSession.session_history)
   const clientSupports = normalizeClientSupports(apiSession)
   const clientSupport = clientSupports[0] || null
+  const disputes = Array.isArray(apiSession.disputes)
+    ? apiSession.disputes.map(normalizeDispute).filter(Boolean)
+    : []
 
   return {
     id: apiSession.id,
@@ -432,6 +435,7 @@ export function normalizeSession(apiSession, extras = {}) {
     hands: String(apiSession.hands ?? ''),
     clientSupport,
     clientSupports,
+    disputes,
     sessionTherapists,
     therapists,
     therapistLabel: therapists.join(', '),
@@ -1148,6 +1152,121 @@ export async function createPosAdminNote({ st, phone, ss, th, admin_note }) {
   return apiError(res, data, {
     404: 'Client, session, or therapist not found',
     422: 'Send at least one of phone, ss, or th',
+  })
+}
+
+export function normalizeDispute(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const resolution = raw.resolution && typeof raw.resolution === 'object' ? raw.resolution : {}
+  const thread = Array.isArray(raw.thread)
+    ? raw.thread.map((entry) => ({
+      name: String(entry?.name || '').trim(),
+      text: String(entry?.text || '').trim(),
+      datetime: entry?.datetime || entry?.date_time || '',
+      imageUrl: String(entry?.image_url || '').trim(),
+    }))
+    : []
+  return {
+    id: raw.id,
+    description: String(raw.description || '').trim(),
+    resolved: !!raw.resolved,
+    resolution: {
+      text: String(resolution.text || '').trim(),
+      imageUrls: Array.isArray(resolution.image_urls) ? resolution.image_urls.filter(Boolean) : [],
+    },
+    thread,
+    assignedStaff: Array.isArray(raw.assigned_staff) ? raw.assigned_staff : [],
+    sessionCode: raw.session_code || '',
+    clientName: raw.client_name || '',
+    createdAt: raw.created_at || '',
+  }
+}
+
+async function sendDispute(path, { method, json, form }) {
+  const res = await fetch(url(path), {
+    method,
+    headers: form
+      ? { Accept: 'application/json' }
+      : { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: form || JSON.stringify(json),
+  })
+  const data = await readJson(res)
+  if (res.status === 200 || res.status === 201) return { ok: true, dispute: normalizeDispute(data) }
+  return apiError(res, data)
+}
+
+export function createPosDispute({ code, ss, description, assignedStaff = [] }) {
+  return sendDispute('/pos/disputes', {
+    method: 'POST',
+    json: {
+      code: String(code || '').trim(),
+      ss: String(ss || '').trim(),
+      description: String(description || '').trim(),
+      assigned_staff: assignedStaff,
+    },
+  })
+}
+
+export function updatePosDispute({ id, code, description }) {
+  return sendDispute(`/pos/disputes/${id}`, {
+    method: 'PATCH',
+    json: {
+      code: String(code || '').trim(),
+      description: String(description || '').trim(),
+    },
+  })
+}
+
+export function resolvePosDispute({ id, code, text, imageUrls = [], images = [] }) {
+  if (images.length) {
+    const form = new FormData()
+    form.append('code', String(code || '').trim())
+    form.append('resolution[text]', String(text || ''))
+    imageUrls.forEach((url) => form.append('resolution[image_urls][]', url))
+    images.forEach((file) => form.append('images[]', file))
+    return sendDispute(`/pos/disputes/${id}/resolve`, { method: 'PATCH', form })
+  }
+  return sendDispute(`/pos/disputes/${id}/resolve`, {
+    method: 'PATCH',
+    json: {
+      code: String(code || '').trim(),
+      resolution: { text: String(text || ''), image_urls: imageUrls },
+    },
+  })
+}
+
+export function addPosDisputeThread({ id, th, name, text, image }) {
+  if (image) {
+    const form = new FormData()
+    form.append('th', String(th || '').trim())
+    form.append('thread[name]', String(name || '').trim())
+    form.append('thread[text]', String(text || '').trim())
+    form.append('image', image)
+    return sendDispute(`/pos/disputes/${id}/thread`, { method: 'POST', form })
+  }
+  return sendDispute(`/pos/disputes/${id}/thread`, {
+    method: 'POST',
+    json: {
+      th: String(th || '').trim(),
+      thread: { name: String(name || '').trim(), text: String(text || '').trim() },
+    },
+  })
+}
+
+export function updatePosDisputeThread({ id, index, code, text }) {
+  return sendDispute(`/pos/disputes/${id}/thread/${index}`, {
+    method: 'PATCH',
+    json: {
+      code: String(code || '').trim(),
+      thread: { text: String(text || '').trim() },
+    },
+  })
+}
+
+export function deletePosDisputeThread({ id, index, code }) {
+  return sendDispute(`/pos/disputes/${id}/thread/${index}`, {
+    method: 'DELETE',
+    json: { code: String(code || '').trim() },
   })
 }
 
