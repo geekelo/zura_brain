@@ -1380,6 +1380,34 @@ table tbody tr:hover {
   color: #c2410c;
 }
 
+.desk-dispute-btn {
+  border-color: #f87171;
+  background: #fee2e2;
+  color: #991b1b;
+  white-space: nowrap;
+}
+
+.dispute-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #991b1b;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.session-dispute-btn .dispute-count {
+  min-width: 18px;
+  height: 18px;
+  font-size: 0.68rem;
+}
+
 .desk-time-btn:not(:disabled) {
   animation: session-time-pulse 1.6s ease-out infinite;
 }
@@ -2199,6 +2227,26 @@ table tbody tr:hover {
 }
 
 .session-action-tile:disabled {
+  opacity: 0.45;
+}
+
+.session-dispute-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #f87171;
+  border-radius: 14px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.session-dispute-btn:disabled {
   opacity: 0.45;
 }
 

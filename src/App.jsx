@@ -192,6 +192,19 @@ function CardIcon({ children }) {
   )
 }
 
+function disputeCount(session) {
+  return Array.isArray(session?.disputes) ? session.disputes.length : 0
+}
+
+function IconHourglass({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6.5 3h11M6.5 21h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M7.5 4.2c.3 3.1 2.2 4.8 4.5 6.6-2.3 1.8-4.2 3.5-4.5 6.6M16.5 4.2c-.3 3.1-2.2 4.8-4.5 6.6 2.3 1.8 4.2 3.5 4.5 6.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 function IconCard({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -216,6 +229,7 @@ function SessionMobileCard({
   onConfirm,
   onSupport,
   onComment,
+  onDispute,
   onManage,
   onOpenReceipt,
 }) {
@@ -421,6 +435,18 @@ function SessionMobileCard({
             <IconComment size={22} />
           </button>
         </div>
+        {s.sessionHistory?.disputed ? (
+          <button
+            type="button"
+            className="session-dispute-btn"
+            disabled={!s.sessionCode}
+            onClick={() => onDispute?.(s)}
+          >
+            <IconHourglass size={15} />
+            Dispute
+            <span className="dispute-count">{disputeCount(s)}</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn primary session-manage-btn"
@@ -2632,11 +2658,13 @@ export default function App() {
                               {s.sessionHistory?.disputed ? (
                                 <button
                                   type="button"
-                                  className="desk-text-btn"
+                                  className="desk-text-btn desk-dispute-btn"
                                   disabled={!s.sessionCode}
                                   onClick={() => openDispute(s)}
                                 >
+                                  <IconHourglass size={13} />
                                   Dispute
+                                  <span className="dispute-count">{disputeCount(s)}</span>
                                 </button>
                               ) : null}
                             </div>
@@ -2681,6 +2709,7 @@ export default function App() {
                     onConfirm={openConfirmPayments}
                     onSupport={openClientSupport}
                     onComment={openAddComment}
+                    onDispute={openDispute}
                     onManage={openManageSession}
                     onOpenReceipt={setReceiptLightbox}
                   />
