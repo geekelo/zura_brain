@@ -5,6 +5,7 @@ import {
   addPosSessionTherapist,
   removePosSessionTherapist,
   tipPosSessionTherapist,
+  untipPosSessionTherapist,
   normalizeSessionTherapist,
 } from './api'
 
@@ -193,6 +194,43 @@ export default function SessionTherapists({
     }
   }
 
+  async function submitUntip(name) {
+    if (busy) return
+    if (!session.sessionCode) {
+      showToast('Session code required')
+      return
+    }
+    if (!adminTipCode.trim()) {
+      showToast('Enter admin code to untip')
+      return
+    }
+    setBusy(true)
+    try {
+      const admin = adminTipCode.trim()
+      const result = await untipPosSessionTherapist({
+        ss: session.sessionCode,
+        name,
+        ...(/^\d+$/.test(admin) ? { tc: admin } : { admin_code: admin }),
+      })
+      if (!result.ok) {
+        showToast(result.error)
+        return
+      }
+      syncList(
+        assigned.map((x) =>
+          String(x.name).toLowerCase() === String(name).toLowerCase()
+            ? { ...x, tipAmount: null, tipBalance: null }
+            : x,
+        ),
+      )
+      showToast(`Untipped ${result.name || name}`)
+    } catch (err) {
+      showToast(err?.message || 'Network error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function submitAssign(e) {
     e?.preventDefault()
     if (busy) return
@@ -370,6 +408,16 @@ export default function SessionTherapists({
                       >
                         Tip
                       </button>
+                      {tipped ? (
+                        <button
+                          type="button"
+                          className="btn small ghost"
+                          disabled={busy || !adminTipCode.trim() || !session.sessionCode}
+                          onClick={() => submitUntip(t.name)}
+                        >
+                          Untip
+                        </button>
+                      ) : null}
                     </div>
                   </li>
                 )

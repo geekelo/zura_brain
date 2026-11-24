@@ -205,16 +205,6 @@ function IconHourglass({ size = 14 }) {
   )
 }
 
-function IconCard({ size = 22 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="5.5" width="18" height="13" rx="2.2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M3 9.5h18" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M7 14.5h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 function SessionMobileCard({
   session: s,
   index,
@@ -225,8 +215,8 @@ function SessionMobileCard({
   onStart,
   onEnd,
   onAssign,
-  onComplete,
   onConfirm,
+  onAddPayment,
   onSupport,
   onComment,
   onDispute,
@@ -416,17 +406,11 @@ function SessionMobileCard({
           <button type="button" className="session-action-tile" aria-label="Assign Therapist" disabled={!s.sessionCode} onClick={() => onAssign(s)}>
             <IconUsers size={22} />
           </button>
-          <button
-            type="button"
-            className="session-action-tile"
-            aria-label="Mark Complete"
-            disabled={!s.sessionCode || String(s.status || '').toLowerCase() === 'completed'}
-            onClick={() => onComplete(s)}
-          >
+          <button type="button" className="session-action-tile" aria-label="Verify payment" disabled={!s.sessionCode} onClick={() => onConfirm(s)}>
             <IconConfirmPayment size={22} />
           </button>
-          <button type="button" className="session-action-tile" aria-label="Confirm Payment" disabled={!s.sessionCode} onClick={() => onConfirm(s)}>
-            <IconCard size={22} />
+          <button type="button" className="session-action-tile" aria-label="Add payment" disabled={!s.sessionCode} onClick={() => onAddPayment?.(s)}>
+            <IconPaymentPlus size={22} />
           </button>
           <button type="button" className="session-action-tile" aria-label="Client support" disabled={!s.sessionCode} onClick={() => onSupport(s)}>
             <IconClientSupport size={22} />
@@ -2706,10 +2690,8 @@ export default function App() {
                     onStart={startSavedSession}
                     onEnd={endSavedSession}
                     onAssign={openAssignSession}
-                    onComplete={(session) =>
-                      openManageSession(session, { tab: 'status', status: 'completed' })
-                    }
                     onConfirm={openConfirmPayments}
+                    onAddPayment={openAddPayment}
                     onSupport={openClientSupport}
                     onComment={openAddComment}
                     onDispute={openDispute}

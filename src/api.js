@@ -1132,6 +1132,30 @@ export async function tipPosSessionTherapist({ ss, name, tip_amount, tc, admin_c
   })
 }
 
+/** DELETE /pos/session_therapists/tip — clears the tip and its extra and tech rows. */
+export async function untipPosSessionTherapist({ ss, name, tc, admin_code }) {
+  const body = {
+    ss: String(ss || '').trim(),
+    name: String(name || '').trim(),
+  }
+  if (tc) body.tc = String(tc).trim()
+  else if (admin_code) body.admin_code = String(admin_code).trim()
+
+  const res = await fetch(url('/pos/session_therapists/tip'), {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const data = await readJson(res)
+  if (res.status === 200) {
+    return { ok: true, name: data?.name || name, tipAmount: null, tipBalance: null }
+  }
+  return apiError(res, data, {
+    401: 'Invalid admin code',
+    404: 'Session or therapist not found',
+  })
+}
+
 /**
  * POST /pos/admin_notes
  * `st` = writer therapist code. At least one of `phone`, `ss`, or `th`.
