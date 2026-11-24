@@ -237,7 +237,10 @@ function SessionMobileCard({
   const clientCycle = clientCycleLine(s, selectedClient)
 
   return (
-    <li className={`session-card${active ? ' row-active' : ''}`}>
+    <li
+      className={`session-card${active ? ' row-active' : ''}`}
+      data-session-code={s.sessionCode || ''}
+    >
       <div className="session-card-hero">
         <div className="session-card-brandbar">
           <span className="session-card-index">#{index + 1}</span>
@@ -1461,6 +1464,14 @@ export default function App() {
     setDisputeSession(s)
   }
 
+  function scrollToSession(sessionCode) {
+    if (!sessionCode) return
+    const matches = [...document.querySelectorAll('[data-session-code]')].filter(
+      (el) => el.getAttribute('data-session-code') === sessionCode && el.getClientRects().length > 0,
+    )
+    matches[0]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   function openManageSession(s, focus = {}) {
     setPanel(null)
     setAssignSession(null)
@@ -2171,6 +2182,7 @@ export default function App() {
             initialTab={manageFocus.tab}
             initialStatus={manageFocus.status}
             onClose={() => setActiveSession(null)}
+            onShowInList={() => scrollToSession(activeSession.sessionCode)}
             onUpdated={upsertSavedSession}
             onDeleted={removeSavedSession}
             onRefreshSessions={refreshSessions}
@@ -2448,6 +2460,7 @@ export default function App() {
                     {filteredSaved.map((s, i) => (
                       <tr
                         key={s.sessionCode || `row-${i}`}
+                        data-session-code={s.sessionCode || ''}
                         className={
                           activeSession?.sessionCode &&
                           activeSession.sessionCode === s.sessionCode

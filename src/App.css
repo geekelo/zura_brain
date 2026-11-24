@@ -812,6 +812,26 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.panel-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.session-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.session-table tbody tr[data-session-code],
+.session-card[data-session-code] {
+  scroll-margin: 16px;
 }
 
 .panel-icon {

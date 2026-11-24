@@ -304,6 +304,7 @@ export default function SessionActions({
   onOpenAddComment,
   onOpenDispute,
   onClose,
+  onShowInList,
   showToast,
   initialTab = 'update',
   initialStatus = '',
@@ -805,9 +806,17 @@ export default function SessionActions({
             </span>
           )}
         </h2>
-        <button type="button" className="text-btn" onClick={onClose}>
-          Close
-        </button>
+        <div className="panel-head-actions">
+          <button type="button" className="btn small ghost session-jump-btn" onClick={onShowInList}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 5v12M7 13l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back to session
+          </button>
+          <button type="button" className="text-btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
       </div>
       <div className="session-summary">
         <p className="session-summary-title">
