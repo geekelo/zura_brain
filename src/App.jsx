@@ -694,6 +694,12 @@ export default function App() {
   const sessionsAutoRefreshTimerRef = useRef(null)
   const refreshSessionsRef = useRef(null)
   const autoRefreshSessionsRef = useRef(false)
+  const sessionsRequestSeq = useRef(0)
+  const localSessionWriteAt = useRef(0)
+
+  function touchLocalSessions() {
+    localSessionWriteAt.current = Date.now()
+  }
 
   function sessionsRefreshOpts() {
     if (listMode === 'client' && client?.phone) return { phone: client.phone }
@@ -725,14 +731,20 @@ export default function App() {
   }
 
   async function refreshSessions(opts = sessionsRefreshOpts()) {
+    const seq = ++sessionsRequestSeq.current
+    const startedAt = Date.now()
     setLoadingSessions(true)
     try {
       const result = await listPosSessions(opts)
+      if (seq !== sessionsRequestSeq.current) return
       if (!result.ok) {
         showToast(result.error)
         if (opts.phone) setSaved([])
         return
       }
+      // A list fetched before a local edit still has the old row. Applying it
+      // flashes the previous value until the next request returns.
+      if (localSessionWriteAt.current > startedAt) return
       setSaved((prev) => {
         const byCode = new Map(
           prev.filter((s) => s.sessionCode).map((s) => [s.sessionCode, s]),
@@ -805,11 +817,15 @@ export default function App() {
         return next || cur
       })
     } catch (err) {
-      showToast(err?.message || 'Could not load sessions')
+      if (seq === sessionsRequestSeq.current) {
+        showToast(err?.message || 'Could not load sessions')
+      }
     } finally {
-      setLoadingSessions(false)
-      // When auto refresh is on, next run is 3 minutes after this refresh finishes.
-      scheduleSessionsAutoRefresh()
+      if (seq === sessionsRequestSeq.current) {
+        setLoadingSessions(false)
+        // When auto refresh is on, next run is 3 minutes after this refresh finishes.
+        scheduleSessionsAutoRefresh()
+      }
     }
   }
 
@@ -1180,6 +1196,7 @@ export default function App() {
         staffCode: st,
         staffName: resolveStaff(st)?.name || st,
       })
+      touchLocalSessions()
       setSaved((list) => [
         row,
         ...list.filter((s) => s.sessionCode !== row.sessionCode),
@@ -1243,6 +1260,7 @@ export default function App() {
       staffName: staff.name,
     }
 
+    touchLocalSessions()
     setSaved((list) => [row, ...list])
     setBooked((prev) => ({
       ...prev,
@@ -1255,6 +1273,7 @@ export default function App() {
 
   function upsertSavedSession(next) {
     const code = next.sessionCode
+    touchLocalSessions()
     setSaved((list) => {
       const without = code
         ? list.filter((s) => s.sessionCode !== code)
@@ -1285,6 +1304,7 @@ export default function App() {
   }
 
   function applyPaymentMethods(sessionCode, nextList) {
+    touchLocalSessions()
     const patch = (cur) =>
       cur && cur.sessionCode === sessionCode
         ? { ...cur, paymentMethods: nextList }
@@ -1302,6 +1322,7 @@ export default function App() {
   }
 
   function removeSavedSession(sessionCode) {
+    touchLocalSessions()
     setSaved((list) => list.filter((s) => s.sessionCode !== sessionCode))
     refreshSessions()
   }
